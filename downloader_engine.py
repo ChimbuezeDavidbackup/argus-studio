@@ -1,8 +1,106 @@
 import os
 import re
+import shutil
+import sys
+import zipfile
+import urllib.request
 from typing import Any, Callable, Dict, List, Optional
 import yt_dlp
 from yt_dlp.utils import download_range_func
+
+DATA_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "ArgusStudio")
+BIN_DIR = os.path.join(DATA_DIR, "bin")
+
+
+def get_ffmpeg_location() -> Optional[str]:
+    """Find ffmpeg binary location across app bundle, AppData, and system PATH."""
+    # 1. Bundled with PyInstaller application directory
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+
+    bundled_paths = [
+        os.path.join(base_path, "bin", "ffmpeg.exe"),
+        os.path.join(base_path, "ffmpeg.exe"),
+    ]
+    for p in bundled_paths:
+        if os.path.isfile(p):
+            return os.path.dirname(p)
+
+    # 2. Local user AppData/ArgusStudio/bin
+    appdata_ffmpeg = os.path.join(BIN_DIR, "ffmpeg.exe")
+    if os.path.isfile(appdata_ffmpeg):
+        return BIN_DIR
+
+    # 3. System PATH
+    sys_ffmpeg = shutil.which("ffmpeg")
+    if sys_ffmpeg:
+        return os.path.dirname(sys_ffmpeg)
+
+    return None
+
+
+def is_ffmpeg_available() -> bool:
+    """Check if ffmpeg is available on this system."""
+    return get_ffmpeg_location() is not None
+
+
+def download_portable_ffmpeg(progress_callback: Optional[Callable[[str, float], None]] = None) -> bool:
+    """Download and extract portable Windows FFmpeg into %APPDATA%/ArgusStudio/bin."""
+    os.makedirs(BIN_DIR, exist_ok=True)
+    # Statically linked Windows build
+    url = "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+    zip_dest = os.path.join(BIN_DIR, "ffmpeg_dl.zip")
+
+    try:
+        if progress_callback:
+            progress_callback("Connecting to download server...", 0.05)
+
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        with urllib.request.urlopen(req, timeout=30) as resp, open(zip_dest, "wb") as out_f:
+            total_size = int(resp.headers.get("content-length", 0))
+            downloaded = 0
+            block_size = 65536
+            while True:
+                chunk = resp.read(block_size)
+                if not chunk:
+                    break
+                out_f.write(chunk)
+                downloaded += len(chunk)
+                if total_size > 0 and progress_callback:
+                    ratio = min(0.90, downloaded / total_size)
+                    mb = downloaded / (1024 * 1024)
+                    tot_mb = total_size / (1024 * 1024)
+                    progress_callback(f"Downloading FFmpeg: {mb:.1f}/{tot_mb:.1f} MB ({ratio*100:.0f}%)", ratio)
+
+        if progress_callback:
+            progress_callback("Extracting portable binaries...", 0.92)
+
+        with zipfile.ZipFile(zip_dest, 'r') as zf:
+            for member in zf.namelist():
+                filename = os.path.basename(member)
+                if filename.lower() in ("ffmpeg.exe", "ffprobe.exe"):
+                    source = zf.open(member)
+                    target_path = os.path.join(BIN_DIR, filename)
+                    with open(target_path, "wb") as target:
+                        shutil.copyfileobj(source, target)
+
+        if os.path.exists(zip_dest):
+            os.remove(zip_dest)
+
+        if is_ffmpeg_available():
+            if progress_callback:
+                progress_callback("FFmpeg successfully installed!", 1.0)
+            return True
+        return False
+    except Exception as e:
+        if os.path.exists(zip_dest):
+            try:
+                os.remove(zip_dest)
+            except Exception:
+                pass
+        raise RuntimeError(f"Failed to auto-download FFmpeg: {e}") from e
 
 
 def parse_time_to_seconds(time_str: Optional[str]) -> Optional[int]:
@@ -27,13 +125,19 @@ class DownloaderEngine:
     def __init__(self):
         pass
 
+    def is_ffmpeg_available(self) -> bool:
+        return is_ffmpeg_available()
+
+    def get_ffmpeg_location(self) -> Optional[str]:
+        return get_ffmpeg_location()
+
     def _build_ydl_opts(
         self,
         browser_cookies: Optional[str] = None,
         cookie_file: Optional[str] = None,
         base_opts: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        opts = {
+        opts: Dict[str, Any] = {
             'quiet': True,
             'no_warnings': True,
             'socket_timeout': 20,
@@ -41,10 +145,18 @@ class DownloaderEngine:
             'nopart': True,
             'file_access_retries': 10,
             'windowsfilenames': True,
-            # Solve YouTube JS player challenges via Node.js runtime + EJS
-            'js_runtimes': {'node': {}},
-            'remote_components': {'ejs:github'},
         }
+
+        # Dynamically inject FFmpeg location if discovered
+        ffmpeg_loc = get_ffmpeg_location()
+        if ffmpeg_loc:
+            opts['ffmpeg_location'] = ffmpeg_loc
+
+        # Only activate Node.js runtime if node is installed on this machine
+        if shutil.which("node"):
+            opts['js_runtimes'] = {'node': {}}
+            opts['remote_components'] = {'ejs:github'}
+
         if base_opts:
             opts.update(base_opts)
 
@@ -74,6 +186,13 @@ class DownloaderEngine:
                 "1. If this video is public, change 'Auth / Browser State' to 'None'.\n"
                 "2. Completely close your browser (including background tray icons) and try again.\n"
                 "3. Alternatively, export your cookies to a 'cookies.txt' file and load it."
+            )
+        if "ffmpeg" in msg.lower() and ("not found" in msg.lower() or "postprocessing" in msg.lower()):
+            return (
+                "FFmpeg Missing On This Computer:\n\n"
+                "FFmpeg is required to merge 1080p+ video streams and convert MP3 audio.\n\n"
+                "Solution:\n"
+                "Open Settings in Argus Studio and click 'Install Portable FFmpeg' to automatically configure it."
             )
         if "WinError 32" in msg or "used by another process" in msg:
             return (

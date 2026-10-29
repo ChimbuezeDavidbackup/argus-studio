@@ -1,103 +1,141 @@
 <div align="center">
 
-<img src="app_icon.png" alt="Argus Studio Logo" width="120" height="120" />
+<img src="app_icon.png" alt="Argus Studio Logo" width="100" height="100" />
 
-# 🎬 Argus Studio Pro
-### *The Ultimate YouTube Video & Audio Downloader Suite for Windows*
+# Argus Studio
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![UI](https://img.shields.io/badge/GUI-CustomTkinter-blueviolet.svg)](https://github.com/TomSchimansky/CustomTkinter)
-[![Core Engine](https://img.shields.io/badge/Engine-yt--dlp-red.svg?logo=youtube&logoColor=white)](https://github.com/yt-dlp/yt-dlp)
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6.svg?logo=windows&logoColor=white)](https://microsoft.com)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+**A High-Performance Desktop Media Ingestion and Transcoding Suite for Windows**
 
-**Argus Studio** is a powerhouse desktop media downloader engineered specifically to solve modern YouTube downloading restrictions, bot detection barriers, and file-locking bottlenecks on Windows.
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6.svg?logo=windows&logoColor=white)](https://microsoft.com)
+[![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![GUI: CustomTkinter](https://img.shields.io/badge/GUI-CustomTkinter-blueviolet.svg)](https://github.com/TomSchimansky/CustomTkinter)
+[![Core Engine: yt-dlp](https://img.shields.io/badge/Core%20Engine-yt--dlp-red.svg)](https://github.com/yt-dlp/yt-dlp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Key Features](#-key-features) • [Why Argus Studio?](#-why-argus-studio) • [Installation & Usage](#-installation--usage) • [Building from Source](#-building-from-source) • [License](#-license)
+[Overview](#overview) • [Engineering Challenges & Solutions](#engineering-challenges--solutions) • [Key Capabilities](#key-capabilities) • [Architecture](#system-architecture) • [Installation](#installation--distribution) • [Build Guide](#building-from-source)
 
 </div>
 
 ---
 
-## 🎯 The Core Problem: Downloading YouTube Videos in 2026
+## Overview
 
-Modern YouTube updates have made video downloading notoriously unreliable for standard tools:
-* ⚠️ **JavaScript Challenges & Bot Detection**: YouTube frequently blocks requests with errors like `"Sign in to confirm you're not a bot"` or `"This video is not available"`.
-* ⚠️ **Complex Streams (DASH/SABR)**: High-resolution streams (1080p, 1440p, 4K, 8K) separate audio and video tracks, requiring precise on-the-fly muxing.
-* ⚠️ **Windows File Rename Locks (`[WinError 32]`)**: Antivirus and Windows Search Indexers lock `.part` files right as downloads finish, crashing downloaders during rename operations.
-* ⚠️ **Browser Cookie Conflicts**: Active browser sessions lock SQLite cookie databases, preventing tools from reading session tokens.
-
-### 🛡️ How Argus Studio Solves This:
-1. **Automated JavaScript Challenge Solving**: Integrates Node.js execution and dynamic challenge solving (`remote_components: {'ejs:github'}`) to bypass bot challenges natively.
-2. **Direct-to-File Stream Architecture**: Employs `nopart: True` with progressive retry guards (`file_access_retries: 10`) to eliminate Windows Defender file-locking errors completely.
-3. **Fail-Safe Cookie Extraction**: Automatically strips locked database handles and falls back seamlessly to public stream endpoints without interrupting your queue.
+**Argus Studio** is a standalone Windows desktop application designed for high-fidelity media extraction, transcoding, and queue management. Built on modern Python, `yt-dlp`, and CustomTkinter, it provides a resilient pipeline capable of resolving modern streaming restrictions, stream multiplexing requirements, and Windows-specific concurrency constraints.
 
 ---
 
-## ✨ Key Features
+## Engineering Challenges & Solutions
 
-### 🎥 High-Resolution YouTube Video Downloading
-- Download single videos, YouTube Shorts, or full channels.
-- Select from **Best Available**, **4K (2160p)**, **1440p (2K)**, **1080p (Full HD)**, **720p (HD)**, **480p**, or **360p**.
-- Clean container packaging into **MP4** or **MKV**.
+Extracting streaming media on modern Windows desktop environments introduces significant technical constraints, ranging from bot detection heuristics and separate DASH stream protocols to Windows I/O file locks. Argus Studio addresses each challenge through deliberate architectural mitigations:
 
-### 🎵 Audiophile MP3 & Audio Extraction with ID3 Cover Art
-- Extract studio-quality audio: **MP3 (320 kbps)**, **MP3 (192 kbps)**, **M4A (AAC)**, **FLAC (Lossless)**, or **WAV**.
-- Automatically fetches video thumbnails and embeds them directly as **front album cover art** into the audio file.
-- Automatically writes full **ID3 tags** (Artist, Title, Album, Year) using Mutagen.
-
-### 📂 Interactive YouTube Playlist & Channel Inspector
-- Paste any YouTube playlist or channel link and click **📂 Playlist**.
-- View complete video lists with thumbnails, durations, and titles.
-- Select/deselect individual tracks, select all, and enable **Sequential Track Numbering** (`01 - Video Title.mp4`).
-
-### ✂️ Precision Timestamp & Section Trimmer
-- Download only the specific segment of a video you need without downloading gigabytes of unwanted footage.
-- Enter **Start Time** and **End Time** (e.g. `00:01:30` to `00:04:15`) to extract the exact clip directly from the YouTube stream.
-
-### 💬 YouTube Subtitles & Closed Captions (CC)
-- Fetch official subtitles or YouTube auto-generated captions.
-- Select languages: **English**, **Spanish**, **French**, **German**, or **All Languages**.
-- Option to **embed subtitles** directly into the MP4 video container or export as standalone `.srt` files.
-
-### 📋 Smart Clipboard Auto-Detector
-- Detects when you copy a YouTube link anywhere in Windows (`youtube.com/watch`, `youtu.be/`, `shorts/`, `playlist`).
-- Displays a quick, non-intrusive *"Load YouTube Link"* banner directly inside the app.
-
-### 🚀 Multi-Threaded Background Queue
-- Concurrent download queue with configurable worker pool (1 to 5 concurrent jobs).
-- Live progress indicators showing **percentage, transfer speed (MB/s), downloaded bytes, and ETA**.
-- Global **Bandwidth Limiter** (Unlimited, 1 MB/s, 2 MB/s, 5 MB/s, 10 MB/s).
-
-### 📁 Built-in Media Library
-- Automatically tracks all finished downloads.
-- Quick action buttons to **▶ Play** directly in your default media player, **📂 Show in Explorer**, or remove entries.
+| Technical Challenge | Root Cause / Impact | Argus Studio Engineering Solution |
+| :--- | :--- | :--- |
+| **DASH Stream Separation** | High-definition formats (1080p, 1440p, 4K) serve video and audio as separate streams requiring multiplexing. Standard systems fail without external tools. | **Integrated FFmpeg Pipeline**: Implements automatic multi-path discovery (`sys._MEIPASS`, `%APPDATA%\ArgusStudio\bin`, and `PATH`) with a built-in one-click provisioner for portable static FFmpeg binaries. |
+| **Bot Detection & JavaScript Challenges** | Content delivery networks enforce client-side signature decryption and dynamic challenge tokens to prevent programmatic access. | **Dynamic Runtime Decryption**: Integrates Node.js execution with dynamic challenge components (`remote_components: {'ejs:github'}`), complemented by automated fallback routines for offline environments. |
+| **Windows File Locking (`WinError 32`)** | Windows Search Indexer and antivirus software lock temporary `.part` files during rename operations upon download completion. | **Direct-to-Target File I/O**: Disables multi-stage file staging (`nopart: True`) and applies automated access retry strategies (`file_access_retries: 10`) to eliminate locking collisions. |
+| **Browser Database Contention** | Active web browsers hold exclusive locks on their SQLite cookie databases, preventing credential inspection. | **Non-Blocking Cookie Isolation**: Detects browser locking states, safely releases SQLite file locks, and falls back to unauthenticated public endpoints without stalling the queue. |
+| **Cross-Thread UI Collisions** | Accessing the Win32 OLE clipboard from background worker threads causes race conditions and Tcl/Tk native access violations. | **Thread-Safe Event Loop Polling**: Relies on Tkinter’s native event loop scheduling (`after()`) rather than background OS-level hooks, isolating all clipboard inspection to the UI thread. |
+| **Silent Failures in Windowed PE Builds** | Packaged GUI executables (`--noconsole`) swallow `stdout`/`stderr`, leaving users without feedback during unexpected crashes. | **Persistent Diagnostic Instrumentation**: Top-level exception trapping (`sys.excepthook`) and safe stream redirection log complete tracebacks to `%APPDATA%\ArgusStudio\argus_runtime.log` alongside native error dialogs. |
 
 ---
 
-## 🚀 Installation & Usage
+## Key Capabilities
 
-### Option 1: Windows Installer (Recommended)
-Download and run the setup wizard (`ArgusStudio-Setup.exe`) from the repository releases:
-- Automatically installs to `AppData\Local\Programs\ArgusStudio`.
-- Creates desktop shortcuts and Start Menu entries.
-- Includes a clean uninstaller.
+### Video Ingestion & Stream Multiplexing
+- Supports single video, channel, and playlist extraction across multiple providers.
+- Resolution selection up to 4K (2160p), 1440p, 1080p, and adaptive best-quality profiles.
+- Automatic multiplexing into standardized MP4 and MKV containers.
 
-### Option 2: Standalone Portable Executable
-1. Download `ArgusStudio.exe`.
-2. Place it in any folder and run it directly. No installation or Python setup required!
+### Audio Extraction & Metadata Tagging
+- Audio transcoding to MP3 (up to 320 kbps), M4A (AAC), FLAC (lossless), and WAV.
+- Automatic thumbnail retrieval, aspect ratio normalization, and cover art embedding (ID3v2 APIC).
+- Standardized ID3v2.3/v2.4 and Vorbis comment tagging powered by Mutagen.
+
+### Selective Ingestion & Clipping
+- Client-side stream slicing using precise start/end timestamps without fetching unnecessary data blocks.
+- Track extraction and sequential index prefixing for channel and playlist imports.
+
+### Closed Captions & Subtitles
+- Parsing of embedded and automated subtitle tracks across international languages.
+- Direct stream container embedding or sidecar `.srt` file extraction.
+
+### Queue Management & Concurrency
+- Configurable worker pool (1 to 5 concurrent jobs) with non-blocking execution.
+- Real-time telemetry reporting: transfer velocity, percentage completion, size indicators, and ETA.
+- Configurable global bandwidth rate limiter.
 
 ---
 
-## 🛠️ Building from Source
+## System Architecture
+
+Argus Studio is organized into discrete, loosely-coupled subsystems:
+
+```mermaid
+flowchart TD
+    subgraph UI["Presentation Layer (CustomTkinter)"]
+        A[Main Navigation Window]
+        B[Downloader View]
+        C[Queue Monitor]
+        D[Library & History]
+        E[Settings & Diagnostics]
+    end
+
+    subgraph Service["Application & Service Layer"]
+        F[Queue Manager]
+        G[Clipboard Watcher]
+        H[Configuration Service]
+        I[Crash & Diagnostics Logger]
+    end
+
+    subgraph Engine["Processing & Media Layer"]
+        J[Downloader Engine / yt-dlp]
+        K[FFmpeg & FFprobe Runtime]
+        L[Mutagen Metadata Processor]
+    end
+
+    A --> B & C & D & E
+    B --> F
+    C --> F
+    G --> B
+    F --> J
+    J --> K
+    J --> L
+    I -.-> A
+```
+
+| Layer | Component | Core Responsibility |
+| :--- | :--- | :--- |
+| **Presentation** | `app.py` | UI rendering, user interaction, progress dispatching, and thread-safe event scheduling. |
+| **Queue & Concurrency** | `download_queue.py` | Asynchronous task scheduling, worker pool management, and state notification. |
+| **Media Processing** | `downloader_engine.py` | Media stream resolution, FFmpeg multiplexing, audio conversion, and error translation. |
+| **Diagnostics** | `argus_runtime.log` | Persistent runtime logging and structured traceback capture. |
+
+---
+
+## Installation & Distribution
+
+### Option 1: Windows Setup Wizard (Recommended)
+Download and execute `ArgusStudio-Setup.exe` from the latest release:
+- Installs to `%LOCALAPPDATA%\Programs\ArgusStudio`.
+- Automatically provisions desktop and Start Menu shortcuts.
+- Includes a clean system uninstaller.
+- Runs with standard user privileges (no Administrator rights required).
+
+### Option 2: Portable Standalone Executable
+- Download `ArgusStudio.exe`.
+- Self-contained portable binary: runs directly from any local directory or removable drive without prior setup.
+
+---
+
+## Building from Source
 
 ### Prerequisites
-- **Python 3.10+**
-- **Node.js** (required for solving YouTube JavaScript challenges)
-- **FFmpeg** (recommended for video/audio merging and ID3 conversion)
+- **Python 3.10** or higher
+- **Inno Setup 6** (optional, required only for compiling the installer wizard)
+- **Node.js** (optional, used for extended client challenge resolution)
 
-### Setup
-```bash
+### Environment Setup
+```powershell
 # 1. Clone the repository
 git clone https://github.com/ChimbuezeDavid/argus-studio.git
 cd argus-studio
@@ -105,45 +143,35 @@ cd argus-studio
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Launch the application
+# 3. Launch application directly
 python app.py
 ```
 
-### Packaging into Standalone .exe
-```bash
-# Run the automated build script
-build_exe.bat
+### Compiling Binaries
+Execute the build pipeline script:
+```powershell
+.\build_exe.bat
 ```
-This produces `dist\ArgusStudio.exe` bundled with all CustomTkinter theme assets, Mutagen ID3 hooks, and windowed launcher flags.
-
-### Compiling the Windows Installer
-If you have [Inno Setup 6](https://jrsoftware.org/isdl.php) installed:
-```bash
-iscc installer.iss
-```
-This generates `dist\ArgusStudio-Setup.exe`.
+This automated process:
+1. Executes `PyInstaller` using the production specification file ([`ArgusStudio.spec`](ArgusStudio.spec)).
+2. Compiles standalone binary to `dist\ArgusStudio.exe`.
+3. Invokes the Inno Setup compiler (`ISCC.exe`) to generate `dist\ArgusStudio-Setup.exe`.
 
 ---
 
-## 📋 Technical Architecture
+## Diagnostics & Troubleshooting
 
-| Component | Technology | Responsibility |
-| :--- | :--- | :--- |
-| **GUI Framework** | `customtkinter` | Modern dark-mode responsive desktop interface |
-| **Download Engine** | `yt-dlp` | Video/Audio extraction, stream muxing, challenge resolution |
-| **JS Runtime** | `Node.js` | Headless execution of YouTube player challenge scripts |
-| **Audio Tagging** | `mutagen` | ID3v2.3 tag writing & high-res APIC cover art embedding |
-| **Queue Manager** | Python `threading` & `Queue` | Asynchronous multi-worker download queue |
-| **Packaging** | `PyInstaller` & `Inno Setup` | Single-binary executable & Windows setup wizard |
+Argus Studio includes built-in diagnostics to assist in isolating issues across diverse hardware configurations:
 
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more details.
+- **Runtime Logs**: Detailed execution traces are written to:
+  ```
+  %APPDATA%\ArgusStudio\argus_runtime.log
+  ```
+  This file can be opened directly from the **Settings > Diagnostics** panel.
+- **FFmpeg Status**: Verify active binary resolution status under **Settings > Media Transcoding Engine**. If missing, use the **Install Portable FFmpeg** button to provision a static portable build automatically.
 
 ---
 
-<div align="center">
-Developed by <b>Chimbueze David Okoroji</b> • Star ⭐ this repository if Argus Studio helped you!
-</div>
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for full details.

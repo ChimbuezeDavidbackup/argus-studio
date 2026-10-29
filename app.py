@@ -1,10 +1,13 @@
 import io
 import json
+import logging
 import os
 import re
 import subprocess
+import sys
 import threading
 import time
+import traceback
 from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -14,16 +17,56 @@ import customtkinter as ctk
 from PIL import Image
 import requests
 
-from downloader_engine import DownloaderEngine, parse_time_to_seconds
+from downloader_engine import (
+    DownloaderEngine,
+    parse_time_to_seconds,
+    is_ffmpeg_available,
+    get_ffmpeg_location,
+    download_portable_ffmpeg
+)
 from download_queue import DownloadTask, QueueManager
 
-ctk.set_appearance_mode("Dark")
-ctk.set_default_color_theme("blue")
+# ================= PERSISTENCE & CRASH LOGGING ================= #
 
 DATA_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "ArgusStudio")
 os.makedirs(DATA_DIR, exist_ok=True)
 CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
 LIBRARY_FILE = os.path.join(DATA_DIR, "library.json")
+LOG_FILE = os.path.join(DATA_DIR, "argus_runtime.log")
+
+# Persistent diagnostics logger
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    encoding="utf-8"
+)
+
+# Fallback stdout/stderr for PyInstaller --noconsole to prevent NoneType crashes
+class _SafeStreamWriter:
+    def write(self, s):
+        if s and s.strip():
+            logging.info(s.strip())
+    def flush(self):
+        pass
+
+if sys.stdout is None:
+    sys.stdout = _SafeStreamWriter()
+if sys.stderr is None:
+    sys.stderr = _SafeStreamWriter()
+
+def _global_exception_handler(exc_type, exc_value, exc_tb):
+    err_text = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    logging.critical("Fatal Unhandled Exception:\n%s", err_text)
+    try:
+        messagebox.showerror(
+            "Argus Studio - Runtime Error",
+            f"An unexpected error occurred:\n\n{exc_value}\n\nDiagnostics have been logged to:\n{LOG_FILE}"
+        )
+    except Exception:
+        pass
+
+sys.excepthook = _global_exception_handler
 
 # Migrate existing local files if present
 _old_dir = os.path.dirname(os.path.abspath(__file__))
@@ -92,7 +135,6 @@ def save_config(cfg: Dict[str, Any]):
 def get_resource_path(relative_path: str) -> str:
     """Get absolute path to resource, works for dev and PyInstaller."""
     try:
-        import sys
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.dirname(os.path.abspath(__file__))
@@ -103,9 +145,9 @@ class ArgusStudioApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # Clean, uncluttered title
+        # Window Config
         self.title("Argus Studio")
-        self.geometry("1120x800")
+        self.geometry("1120x820")
         self.minsize(1020, 720)
 
         # Official App Icon
@@ -139,9 +181,9 @@ class ArgusStudioApp(ctk.CTk):
         self._build_layout()
         self._show_tab("downloader")
 
-        # Smart Clipboard Monitor Thread
+        # Thread-safe Mainloop Clipboard Polling
         if self.config_data.get("clipboard_monitor", True):
-            threading.Thread(target=self._clipboard_watcher_loop, daemon=True).start()
+            self.after(1500, self._check_clipboard_poll)
 
     # ================= LAYOUT BUILDER ================= #
 
@@ -201,7 +243,7 @@ class ArgusStudioApp(ctk.CTk):
         # 2. Main Content Area
         self.main_container = ctk.CTkFrame(self, fg_color="#090a0f", corner_radius=0)
         self.main_container.grid(row=0, column=1, sticky="nsew")
-        self.main_container.grid_rowconfigure(2, weight=1)
+        self.main_container.grid_rowconfigure(3, weight=1)
         self.main_container.grid_columnconfigure(0, weight=1)
 
         # Top Header Bar
@@ -211,7 +253,32 @@ class ArgusStudioApp(ctk.CTk):
         self.header_title = ctk.CTkLabel(self.header_frame, text="Media Downloader", font=ctk.CTkFont(size=16, weight="bold"))
         self.header_title.pack(side="left", padx=24, pady=14)
 
-        # Clipboard Auto-Detect Toast Banner (Hidden by default)
+        # FFmpeg Missing Alert Banner
+        self.ffmpeg_banner = ctk.CTkFrame(self.main_container, fg_color="#7c2d12", corner_radius=8)
+        self.ffmpeg_banner_lbl = ctk.CTkLabel(
+            self.ffmpeg_banner,
+            text="⚠️ FFmpeg not found: Required for 1080p+ merging & MP3 audio conversion.",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#fdba74"
+        )
+        self.ffmpeg_banner_lbl.pack(side="left", padx=14, pady=6)
+
+        self.ffmpeg_banner_btn = ctk.CTkButton(
+            self.ffmpeg_banner,
+            text="Install Portable FFmpeg",
+            width=150,
+            height=26,
+            corner_radius=6,
+            fg_color="#ea580c",
+            hover_color="#c2410c",
+            command=self._start_ffmpeg_install
+        )
+        self.ffmpeg_banner_btn.pack(side="right", padx=10, pady=6)
+
+        if not self.engine.is_ffmpeg_available():
+            self.ffmpeg_banner.grid(row=1, column=0, sticky="ew", padx=20, pady=(6, 0))
+
+        # Clipboard Auto-Detect Toast Banner
         self.clip_banner = ctk.CTkFrame(self.main_container, fg_color="#1e3a8a", corner_radius=8)
         self.clip_banner_label = ctk.CTkLabel(
             self.clip_banner,
@@ -258,18 +325,19 @@ class ArgusStudioApp(ctk.CTk):
 
         if tab_key == "downloader":
             self.header_title.configure(text="Media Downloader")
-            self.view_downloader.grid(row=2, column=0, sticky="nsew", padx=20, pady=12)
+            self.view_downloader.grid(row=3, column=0, sticky="nsew", padx=20, pady=12)
         elif tab_key == "queue":
             self.header_title.configure(text="Download Queue")
-            self.view_queue.grid(row=2, column=0, sticky="nsew", padx=20, pady=12)
+            self.view_queue.grid(row=3, column=0, sticky="nsew", padx=20, pady=12)
             self._render_queue_list()
         elif tab_key == "library":
             self.header_title.configure(text="Media Library")
-            self.view_library.grid(row=2, column=0, sticky="nsew", padx=20, pady=12)
+            self.view_library.grid(row=3, column=0, sticky="nsew", padx=20, pady=12)
             self._refresh_library_ui()
         elif tab_key == "settings":
             self.header_title.configure(text="Settings")
-            self.view_settings.grid(row=2, column=0, sticky="nsew", padx=20, pady=12)
+            self.view_settings.grid(row=3, column=0, sticky="nsew", padx=20, pady=12)
+            self._refresh_ffmpeg_status_ui()
 
     # ================= 1. DOWNLOADER VIEW ================= #
 
@@ -892,7 +960,8 @@ class ArgusStudioApp(ctk.CTk):
 
         pbar = ctk.CTkProgressBar(card, height=8, corner_radius=4, progress_color="#10b981")
         pbar.pack(fill="x", padx=14, pady=4)
-        pbar.set(task.progress)
+        safe_prog = max(0.0, min(1.0, float(task.progress or 0.0)))
+        pbar.set(safe_prog)
 
         bot = ctk.CTkFrame(card, fg_color="transparent")
         bot.pack(fill="x", padx=14, pady=(2, 10))
@@ -937,7 +1006,8 @@ class ArgusStudioApp(ctk.CTk):
         if w:
             w["title"].configure(text=task.title)
             w["status"].configure(text=task.status.upper(), text_color=self._get_status_color(task.status))
-            w["pbar"].set(task.progress)
+            safe_prog = max(0.0, min(1.0, float(task.progress or 0.0)))
+            w["pbar"].set(safe_prog)
             w["info"].configure(text=f"{task.speed}  •  {task.size_info}  •  {task.eta}")
 
     def _on_queue_task_completed(self, task: DownloadTask):
@@ -967,23 +1037,31 @@ class ArgusStudioApp(ctk.CTk):
         if q_btn:
             q_btn.configure(text=f"📋  Queue ({active})")
 
-    # ================= 5. SMART CLIPBOARD WATCHER ================= #
+    # ================= 5. SMART CLIPBOARD WATCHER (THREAD-SAFE) ================= #
 
-    def _clipboard_watcher_loop(self):
-        video_regex = re.compile(r'(https?://(?:www\.|m\.)?(?:youtube\.com|youtu\.be|vimeo\.com|twitter\.com|x\.com|tiktok\.com|instagram\.com)/\S+)', re.IGNORECASE)
-        while True:
-            try:
-                clip = self.clipboard_get().strip()
+    def _check_clipboard_poll(self):
+        if not self.config_data.get("clipboard_monitor", True):
+            return
+
+        video_regex = re.compile(
+            r'(https?://(?:www\.|m\.)?(?:youtube\.com|youtu\.be|vimeo\.com|twitter\.com|x\.com|tiktok\.com|instagram\.com)/\S+)',
+            re.IGNORECASE
+        )
+        try:
+            clip = self.clipboard_get()
+            if clip:
+                clip = clip.strip()
                 if clip and clip != self.last_clipboard_text:
                     self.last_clipboard_text = clip
                     if video_regex.search(clip):
-                        self.after(0, self._show_clipboard_banner, clip)
-            except Exception:
-                pass
-            time.sleep(1.5)
+                        self._show_clipboard_banner(clip)
+        except Exception:
+            pass
+        finally:
+            self.after(1500, self._check_clipboard_poll)
 
     def _show_clipboard_banner(self, url: str):
-        self.clip_banner.grid(row=1, column=0, sticky="ew", padx=20, pady=(6, 0))
+        self.clip_banner.grid(row=2, column=0, sticky="ew", padx=20, pady=(6, 0))
         self.detected_url = url
 
     def _load_detected_clipboard(self):
@@ -1077,7 +1155,10 @@ class ArgusStudioApp(ctk.CTk):
 
     def _show_in_explorer(self, path: str):
         if path and os.path.exists(path):
-            subprocess.run(f'explorer /select,"{os.path.abspath(path)}"')
+            try:
+                subprocess.run(["explorer", f"/select,{os.path.abspath(path)}"])
+            except Exception:
+                self._open_downloads_folder()
         else:
             self._open_downloads_folder()
 
@@ -1085,16 +1166,19 @@ class ArgusStudioApp(ctk.CTk):
         d = self.config_data.get("download_dir", os.path.join(os.path.expanduser("~"), "Downloads"))
         if os.path.exists(d):
             os.startfile(d)
+        else:
+            os.makedirs(d, exist_ok=True)
+            os.startfile(d)
 
-    # ================= 7. SETTINGS VIEW ================= #
+    # ================= 7. SETTINGS & ENGINE VIEW ================= #
 
     def _build_settings_view(self):
-        card = ctk.CTkFrame(self.view_settings, fg_color="#131722", corner_radius=10)
-        card.pack(fill="x", pady=5)
+        # 1. Download Location
+        dir_card = ctk.CTkFrame(self.view_settings, fg_color="#131722", corner_radius=10)
+        dir_card.pack(fill="x", pady=5)
 
-        # Download Directory
-        ctk.CTkLabel(card, text="Default Download Location:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=16, pady=(16, 4))
-        dir_row = ctk.CTkFrame(card, fg_color="transparent")
+        ctk.CTkLabel(dir_card, text="Default Download Location:", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=16, pady=(16, 4))
+        dir_row = ctk.CTkFrame(dir_card, fg_color="transparent")
         dir_row.pack(fill="x", padx=16, pady=(0, 16))
 
         self.cfg_dir_entry = ctk.CTkEntry(dir_row, height=36)
@@ -1102,7 +1186,7 @@ class ArgusStudioApp(ctk.CTk):
         self.cfg_dir_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
         ctk.CTkButton(dir_row, text="Change...", width=90, height=36, command=self._change_default_dir).pack(side="right")
 
-        # Concurrency & Smart Features
+        # 2. Performance & Smart Features
         feat_card = ctk.CTkFrame(self.view_settings, fg_color="#131722", corner_radius=10)
         feat_card.pack(fill="x", pady=10)
 
@@ -1118,12 +1202,115 @@ class ArgusStudioApp(ctk.CTk):
 
         row2 = ctk.CTkFrame(feat_card, fg_color="transparent")
         row2.pack(fill="x", padx=16, pady=(6, 16))
-        self.clip_mon_switch = ctk.CTkCheckBox(row2, text="Smart Clipboard Auto-Detector (Pops up when media link copied)", font=ctk.CTkFont(size=12))
+        self.clip_mon_switch = ctk.CTkCheckBox(row2, text="Smart Clipboard Auto-Detector (Pops up when media link copied)", font=ctk.CTkFont(size=12), command=self._toggle_clipboard_mon)
         if self.config_data.get("clipboard_monitor", True):
             self.clip_mon_switch.select()
         self.clip_mon_switch.pack(side="left")
 
+        # 3. FFmpeg Engine Integration Card
+        self.ffmpeg_card = ctk.CTkFrame(self.view_settings, fg_color="#131722", corner_radius=10)
+        self.ffmpeg_card.pack(fill="x", pady=5)
 
+        ctk.CTkLabel(self.ffmpeg_card, text="Media Transcoding Engine (FFmpeg)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=16, pady=(16, 4))
+        
+        ff_desc = ctk.CTkLabel(
+            self.ffmpeg_card,
+            text="FFmpeg enables YouTube 1080p/4K DASH audio-video stream muxing, MP3 extraction, and subtitle embedding.",
+            font=ctk.CTkFont(size=11),
+            text_color="gray60",
+            anchor="w",
+            wraplength=680
+        )
+        ff_desc.pack(anchor="w", padx=16, pady=(0, 10))
+
+        ff_row = ctk.CTkFrame(self.ffmpeg_card, fg_color="transparent")
+        ff_row.pack(fill="x", padx=16, pady=(0, 12))
+
+        self.ffmpeg_status_label = ctk.CTkLabel(ff_row, text="Checking FFmpeg status...", font=ctk.CTkFont(size=12))
+        self.ffmpeg_status_label.pack(side="left")
+
+        self.ffmpeg_install_btn = ctk.CTkButton(
+            ff_row,
+            text="Install Portable FFmpeg",
+            width=175,
+            height=32,
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#4f46e5",
+            hover_color="#4338ca",
+            command=self._start_ffmpeg_install
+        )
+        self.ffmpeg_install_btn.pack(side="right")
+
+        self.ffmpeg_pbar = ctk.CTkProgressBar(self.ffmpeg_card, height=6, progress_color="#10b981")
+        self.ffmpeg_plbl = ctk.CTkLabel(self.ffmpeg_card, text="", font=ctk.CTkFont(size=11), text_color="gray60")
+
+        # 4. Diagnostics & Crash Logs
+        diag_card = ctk.CTkFrame(self.view_settings, fg_color="#131722", corner_radius=10)
+        diag_card.pack(fill="x", pady=10)
+
+        ctk.CTkLabel(diag_card, text="Diagnostics & System Logs", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=16, pady=(16, 4))
+        
+        diag_row = ctk.CTkFrame(diag_card, fg_color="transparent")
+        diag_row.pack(fill="x", padx=16, pady=(0, 16))
+
+        ctk.CTkLabel(diag_row, text=f"Runtime Log: {os.path.basename(LOG_FILE)}", font=ctk.CTkFont(size=12), text_color="gray70").pack(side="left")
+        ctk.CTkButton(diag_row, text="Open Log File", width=120, height=30, fg_color="#1f2937", hover_color="#374151", command=self._open_log_file).pack(side="right")
+
+    def _open_log_file(self):
+        if os.path.exists(LOG_FILE):
+            os.startfile(LOG_FILE)
+        else:
+            messagebox.showinfo("Log File", "No runtime log file exists yet.")
+
+    def _refresh_ffmpeg_status_ui(self):
+        loc = get_ffmpeg_location()
+        if loc:
+            self.ffmpeg_status_label.configure(
+                text=f"● FFmpeg: Installed & Active ({loc})",
+                text_color="#10b981"
+            )
+            self.ffmpeg_install_btn.configure(text="Reinstall FFmpeg", fg_color="#1f2937", hover_color="#374151")
+            self.ffmpeg_banner.grid_forget()
+        else:
+            self.ffmpeg_status_label.configure(
+                text="⚠️ FFmpeg: Not Installed on this system",
+                text_color="#ef4444"
+            )
+            self.ffmpeg_install_btn.configure(text="Install Portable FFmpeg", fg_color="#ea580c", hover_color="#c2410c")
+            self.ffmpeg_banner.grid(row=1, column=0, sticky="ew", padx=20, pady=(6, 0))
+
+    def _start_ffmpeg_install(self):
+        self.ffmpeg_install_btn.configure(state="disabled", text="Installing...")
+        self.ffmpeg_pbar.pack(fill="x", padx=16, pady=(0, 6))
+        self.ffmpeg_pbar.set(0)
+        self.ffmpeg_plbl.pack(anchor="w", padx=16, pady=(0, 12))
+        self.ffmpeg_plbl.configure(text="Connecting to official release server...")
+
+        def _worker():
+            def _progress(msg: str, frac: float):
+                self.after(0, lambda: (
+                    self.ffmpeg_pbar.set(frac),
+                    self.ffmpeg_plbl.configure(text=msg)
+                ))
+            try:
+                success = download_portable_ffmpeg(progress_callback=_progress)
+                self.after(0, self._on_ffmpeg_installed, success, None)
+            except Exception as e:
+                self.after(0, self._on_ffmpeg_installed, False, str(e))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_ffmpeg_installed(self, success: bool, err: Optional[str]):
+        self.ffmpeg_install_btn.configure(state="normal", text="Reinstall FFmpeg" if success else "Retry Install")
+        self.ffmpeg_pbar.pack_forget()
+        self.ffmpeg_plbl.pack_forget()
+
+        if success:
+            messagebox.showinfo("FFmpeg Configured", "Portable FFmpeg has been successfully installed and linked to Argus Studio!")
+        else:
+            messagebox.showerror("FFmpeg Installation Failed", f"Unable to automatically download FFmpeg:\n{err}")
+
+        self._refresh_ffmpeg_status_ui()
 
     def _change_default_dir(self):
         sel = filedialog.askdirectory(initialdir=self.config_data.get("download_dir", ""))
@@ -1140,6 +1327,10 @@ class ArgusStudioApp(ctk.CTk):
         save_config(self.config_data)
         self.engine_dot.configure(text=f"● Engine Active ({num} slots)")
 
+    def _toggle_clipboard_mon(self):
+        enabled = bool(self.clip_mon_switch.get())
+        self.config_data["clipboard_monitor"] = enabled
+        save_config(self.config_data)
 
 
 if __name__ == "__main__":

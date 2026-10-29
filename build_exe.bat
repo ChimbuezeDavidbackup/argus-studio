@@ -1,23 +1,59 @@
 @echo off
-title Building Argus Studio & Windows Installer
-echo ==============================================
-echo   Packaging Argus Studio with Official Icon
-echo ==============================================
+setlocal enabledelayedexpansion
+title Building Argus Studio Portable & Setup Wizard
+echo =======================================================
+echo   Argus Studio - Professional Build & Packaging Suite
+echo =======================================================
 echo.
-python -m PyInstaller --noconsole --onefile --name "ArgusStudio" --icon "%~dp0app_icon.ico" --add-data "%~dp0app_icon.ico;." --collect-all customtkinter --collect-all yt_dlp --collect-all mutagen "%~dp0app.py"
-copy /Y "%~dp0dist\ArgusStudio.exe" "%~dp0dist\Argus Studio.exe" >nul
-echo.
-echo ==============================================
-echo   Compiling Windows Setup Wizard (.exe)
-echo ==============================================
-echo.
-if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" (
-    "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" "%~dp0installer.iss"
+
+cd /d "%~dp0"
+
+echo [1/3] Packaging Executable via ArgusStudio.spec...
+python -m PyInstaller ArgusStudio.spec --noconfirm --clean
+
+if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo [SUCCESS] Installer ready at:
-    echo %~dp0dist\ArgusStudio-Setup.exe
+    echo [ERROR] PyInstaller build failed! Check errors above.
+    pause
+    exit /b %ERRORLEVEL%
+)
+
+if exist "dist\ArgusStudio.exe" (
+    copy /Y "dist\ArgusStudio.exe" "dist\Argus Studio.exe" >nul
+    echo [OK] Standalone executable compiled: dist\ArgusStudio.exe
+) else (
+    echo [ERROR] dist\ArgusStudio.exe not found!
+    pause
+    exit /b 1
+)
+
+echo.
+echo [2/3] Checking Inno Setup Compiler...
+set "ISCC_PATH=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+if not exist "!ISCC_PATH!" (
+    if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" (
+        set "ISCC_PATH=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+    ) else if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" (
+        set "ISCC_PATH=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+    )
+)
+
+if exist "!ISCC_PATH!" (
+    echo [3/3] Compiling Windows Setup Wizard (.exe)...
+    "!ISCC_PATH!" "%~dp0installer.iss"
+    if %ERRORLEVEL% EQU 0 (
+        echo.
+        echo =======================================================
+        echo [SUCCESS] Windows Installer Ready:
+        echo   dist\ArgusStudio-Setup.exe
+        echo =======================================================
+    ) else (
+        echo [WARNING] Inno Setup compilation encountered an issue.
+    )
 ) else (
     echo [NOTE] Inno Setup compiler not found. Standalone EXE is ready in dist\
 )
+
 echo.
+echo Build process finished!
 pause

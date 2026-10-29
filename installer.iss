@@ -1,6 +1,6 @@
 ; Inno Setup Script for Argus Studio
 #define MyAppName "Argus Studio"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "Argus Studio"
 #define MyAppExeName "ArgusStudio.exe"
 
@@ -31,6 +31,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "app_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "app_icon.png"; DestDir: "{app}"; Flags: ignoreversion; Tasks: 
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app_icon.ico"
