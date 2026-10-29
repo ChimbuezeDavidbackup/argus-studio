@@ -271,10 +271,12 @@ function renderQueue() {
       </div>
       <div class="task-bot">
         <span>${task.speed} • ${task.size_info} • ${task.eta}</span>
-        <span>
+        <span style="display:flex; align-items:center; gap:6px;">
           ${task.status === "queued" || task.status === "downloading" 
             ? `<button class="pill-btn" style="background:#dc2626; color:#fff" onclick="cancelTask('${task.id}')">Cancel</button>`
-            : `<span style="text-transform:uppercase; font-weight:700; color:${task.status === 'completed' ? 'var(--success)' : 'var(--danger)'}">${task.status}</span>`}
+            : task.status === 'completed'
+              ? `<a href="/api/download/${task.id}" class="pill-btn" style="background:var(--accent); color:#fff; text-decoration:none; padding:4px 10px; border-radius:6px; font-size:0.75rem;" download>⬇ Save to Device</a>`
+              : `<span style="text-transform:uppercase; font-weight:700; color:var(--danger)">FAILED</span>`}
         </span>
       </div>
     `;
@@ -317,7 +319,10 @@ async function loadLibrary() {
         </div>
         <div class="task-bot" style="margin-top:8px">
           <span style="font-size:0.75rem">${item.path || "Saved"}</span>
-          <button class="pill-btn" onclick="deleteLibraryItem(${idx})" style="background:#374151">Remove</button>
+          <div style="display:flex; gap:6px;">
+            <a href="/api/library/download/${idx}" class="pill-btn" style="background:var(--accent); color:#fff; text-decoration:none; padding:4px 10px; border-radius:6px; font-size:0.75rem;" download>⬇ Download</a>
+            <button class="pill-btn" onclick="deleteLibraryItem(${idx})" style="background:#374151">Remove</button>
+          </div>
         </div>
       `;
       list.appendChild(card);

@@ -3,14 +3,15 @@ Argus Studio - Web & Mobile Backend Server Entrypoint.
 Enables accessing Argus Studio from browsers, mobile phones, and tablets on the local network.
 """
 
+import os
 import sys
 import uvicorn
 from core.config import load_config
 
 if __name__ == "__main__":
     cfg = load_config()
-    host = cfg.get("web_host", "0.0.0.0")
-    port = int(cfg.get("web_port", 8000))
+    host = os.environ.get("HOST", cfg.get("web_host", "0.0.0.0"))
+    port = int(os.environ.get("PORT", cfg.get("web_port", 8000)))
     
     print("=" * 60)
     print("  Argus Studio - Universal Web & Mobile Server")

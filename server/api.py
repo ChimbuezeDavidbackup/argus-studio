@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -247,6 +248,22 @@ def clear_completed_queue():
     return {"status": "cleared"}
 
 
+@app.get("/api/download/{task_id}")
+def download_task_file(task_id: str):
+    """Directly stream completed file to the user's browser or mobile device."""
+    task = queue_mgr.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if not task.saved_path or not os.path.exists(task.saved_path):
+        raise HTTPException(status_code=404, detail="File is not ready or does not exist on server")
+    filename = os.path.basename(task.saved_path)
+    return FileResponse(
+        path=task.saved_path,
+        filename=filename,
+        media_type="application/octet-stream",
+    )
+
+
 @app.get("/api/library")
 def get_library():
     return {"items": load_library()}
@@ -259,6 +276,24 @@ def delete_library_item(idx: int):
         removed = lib.pop(idx)
         save_library(lib)
         return {"status": "removed", "item": removed}
+    raise HTTPException(status_code=404, detail="Index out of bounds")
+
+
+@app.get("/api/library/download/{idx}")
+def download_library_file(idx: int):
+    """Directly stream an existing library file to client browser/device."""
+    lib = load_library()
+    if 0 <= idx < len(lib):
+        item = lib[idx]
+        path = item.get("path")
+        if path and os.path.exists(path):
+            filename = os.path.basename(path)
+            return FileResponse(
+                path=path,
+                filename=filename,
+                media_type="application/octet-stream",
+            )
+        raise HTTPException(status_code=404, detail="File no longer exists on server storage")
     raise HTTPException(status_code=404, detail="Index out of bounds")
 
 
