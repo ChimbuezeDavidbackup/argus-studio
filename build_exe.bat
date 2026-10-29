@@ -1,8 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
-title Building Argus Studio Portable & Setup Wizard
+title Building Argus Studio Universal Suite
 echo =======================================================
-echo   Argus Studio - Professional Build & Packaging Suite
+echo   Argus Studio - Universal Build & Packaging Suite
 echo =======================================================
 echo.
 
@@ -19,8 +19,9 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 if exist "dist\ArgusStudio.exe" (
+    copy /Y "dist\ArgusStudio.exe" "dist\ArgusStudio-Portable.exe" >nul
     copy /Y "dist\ArgusStudio.exe" "dist\Argus Studio.exe" >nul
-    echo [OK] Standalone executable compiled: dist\ArgusStudio.exe
+    echo [OK] Standalone executables ready in dist\
 ) else (
     echo [ERROR] dist\ArgusStudio.exe not found!
     pause

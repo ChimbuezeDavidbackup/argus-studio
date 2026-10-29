@@ -4,6 +4,7 @@ from PyInstaller.utils.hooks import collect_all
 datas = [
     ('app_icon.ico', '.'),
     ('app_icon.png', '.'),
+    ('web', 'web'),
 ]
 binaries = []
 hiddenimports = [
@@ -14,10 +15,18 @@ hiddenimports = [
     'mutagen.flac',
     'mutagen.wave',
     'PIL._tkinter_finder',
+    'desktop.app',
+    'core.engine',
+    'core.queue',
+    'core.config',
+    'core.models',
+    'server.api',
+    'uvicorn',
+    'fastapi',
 ]
 
 # Comprehensive collection of core packages
-for pkg in ['customtkinter', 'yt_dlp', 'mutagen', 'PIL', 'certifi', 'requests']:
+for pkg in ['customtkinter', 'yt_dlp', 'mutagen', 'PIL', 'certifi', 'requests', 'fastapi', 'uvicorn']:
     d, b, h = collect_all(pkg)
     datas += d
     binaries += b

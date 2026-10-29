@@ -1,0 +1,16 @@
+{
+  "name": "Argus Studio",
+  "short_name": "ArgusStudio",
+  "description": "High-Performance Media Ingestion and Transcoding Suite",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090a0f",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/app_icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
