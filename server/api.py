@@ -113,6 +113,8 @@ class ExtractRequest(BaseModel):
 
 class QueueRequest(BaseModel):
     url: str
+    title: Optional[str] = None
+    thumbnail: Optional[str] = None
     format_type: str = "video"
     quality: str = "best"
     audio_codec: str = "mp3"
@@ -205,6 +207,8 @@ def add_to_queue(req: QueueRequest):
     out_dir = req.output_dir or cfg.get("download_dir", "")
     task = DownloadTask(
         url=req.url,
+        title=req.title or "Analyzing URL...",
+        thumbnail=req.thumbnail,
         format_type=req.format_type,
         quality=req.quality,
         audio_codec=req.audio_codec,

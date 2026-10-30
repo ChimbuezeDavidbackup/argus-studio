@@ -210,6 +210,8 @@ async function queueMedia(jumpToQueue = false) {
 
   const payload = {
     url,
+    title: (state.currentMetadata && state.currentMetadata.title) ? state.currentMetadata.title : "Analyzing URL...",
+    thumbnail: state.currentMetadata ? state.currentMetadata.thumbnail : null,
     format_type: state.selectedFormatType,
     quality: state.selectedQuality,
     audio_codec: document.getElementById("audio-codec") ? document.getElementById("audio-codec").value : "mp3",
@@ -276,9 +278,12 @@ function renderQueue() {
             ? `<button class="pill-btn" style="background:#dc2626; color:#fff" onclick="cancelTask('${task.id}')">Cancel</button>`
             : task.status === 'completed'
               ? `<a href="/api/download/${task.id}" class="pill-btn" style="background:var(--accent); color:#fff; text-decoration:none; padding:4px 10px; border-radius:6px; font-size:0.75rem;" download>⬇ Save to Device</a>`
-              : `<span style="text-transform:uppercase; font-weight:700; color:var(--danger)">FAILED</span>`}
+              : task.status === 'canceled'
+                ? `<span style="text-transform:uppercase; font-weight:700; color:var(--text-muted)">CANCELED</span>`
+                : `<span style="text-transform:uppercase; font-weight:700; color:var(--danger)">FAILED</span>`}
         </span>
       </div>
+      ${task.error_msg ? `<div style="margin-top:8px; font-size:0.75rem; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); padding:6px 10px; border-radius:6px; white-space:pre-wrap; word-break:break-word;">${task.error_msg}</div>` : ''}
     `;
     list.appendChild(card);
   });

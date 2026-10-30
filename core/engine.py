@@ -204,10 +204,9 @@ class DownloaderEngine:
         if loc:
             opts["ffmpeg_location"] = loc
 
-        # Conditionally enable Node.js runtime if present
+        # Conditionally enable local Node.js runtime if present for JS challenge evaluation
         if shutil.which("node"):
             opts["js_runtimes"] = {"node": {}}
-            opts["remote_components"] = {"ejs:github"}
 
         # Client impersonation to bypass YouTube "Sign in to confirm you're not a bot"
         if use_fallback_clients:
@@ -421,39 +420,48 @@ class DownloaderEngine:
                 "subtitleslangs": [subtitles_lang] if subtitles_lang != "all" else ["all"],
             })
 
+        has_ffmpeg = self.is_ffmpeg_available()
         postprocessors = []
 
         if format_type == "audio":
-            base_opts["format"] = "bestaudio/best"
-            postprocessors.append({
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": audio_codec,
-                "preferredquality": audio_quality,
-            })
-            if add_metadata:
-                postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
-            if embed_thumbnail and audio_codec in ("mp3", "m4a"):
-                base_opts["writethumbnail"] = True
-                postprocessors.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
+            if has_ffmpeg:
+                base_opts["format"] = "bestaudio/best"
+                postprocessors.append({
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": audio_codec,
+                    "preferredquality": audio_quality,
+                })
+                if add_metadata:
+                    postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
+                if embed_thumbnail and audio_codec in ("mp3", "m4a"):
+                    base_opts["writethumbnail"] = True
+                    postprocessors.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
+            else:
+                # Native audio stream fallback when FFmpeg is not yet present
+                base_opts["format"] = "bestaudio/best"
         else:
             # Video format selection
-            if quality == "best":
-                base_opts["format"] = "bestvideo+bestaudio/best"
-            else:
-                height = re.sub(r"\D", "", quality)
-                if height:
-                    base_opts["format"] = (
-                        f"bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
-                    )
-                else:
+            if has_ffmpeg:
+                if quality == "best":
                     base_opts["format"] = "bestvideo+bestaudio/best"
+                else:
+                    height = re.sub(r"\D", "", quality)
+                    if height:
+                        base_opts["format"] = (
+                            f"bestvideo[height<={height}]+bestaudio/best[height<={height}]/best"
+                        )
+                    else:
+                        base_opts["format"] = "bestvideo+bestaudio/best"
 
-            base_opts["merge_output_format"] = "mp4"
+                base_opts["merge_output_format"] = "mp4"
 
-            if add_metadata:
-                postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
-            if download_subtitles and embed_subtitles:
-                postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+                if add_metadata:
+                    postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
+                if download_subtitles and embed_subtitles:
+                    postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+            else:
+                # Fallback to single pre-muxed container when FFmpeg is absent
+                base_opts["format"] = "best[ext=mp4]/best"
 
         if postprocessors:
             base_opts["postprocessors"] = postprocessors
