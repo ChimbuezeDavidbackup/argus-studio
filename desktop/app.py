@@ -28,6 +28,7 @@ from core.config import (
     save_library,
     get_data_dir,
     LOG_FILE,
+    APP_VERSION,
 )
 from core.engine import (
     DownloaderEngine,
@@ -38,6 +39,7 @@ from core.engine import (
 )
 from core.models import DownloadTask
 from core.queue import QueueManager
+from core.updater import UpdateManager
 
 # ================= PERSISTENCE & CRASH LOGGING ================= #
 
@@ -126,6 +128,10 @@ class ArgusStudioApp(ctk.CTk):
         # Thread-safe Mainloop Clipboard Polling
         if self.config_data.get("clipboard_monitor", True):
             self.after(1500, self._check_clipboard_poll)
+
+        # Silent background update check
+        if self.config_data.get("auto_check_updates", True):
+            self.after(3500, lambda: self._check_updates_async(show_popup_if_none=False))
 
     # ================= LAYOUT BUILDER ================= #
 
@@ -219,6 +225,29 @@ class ArgusStudioApp(ctk.CTk):
 
         if not self.engine.is_ffmpeg_available():
             self.ffmpeg_banner.grid(row=1, column=0, sticky="ew", padx=20, pady=(6, 0))
+
+        # In-App Update Alert Banner (Notification Bar)
+        self.update_banner = ctk.CTkFrame(self.main_container, fg_color="#14532d", corner_radius=8)
+        self.update_banner_lbl = ctk.CTkLabel(
+            self.update_banner,
+            text="🎉 Update Available: Argus Studio update is ready!",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#86efac"
+        )
+        self.update_banner_lbl.pack(side="left", padx=14, pady=6)
+
+        self.update_banner_btn = ctk.CTkButton(
+            self.update_banner,
+            text="Update Now",
+            width=110,
+            height=26,
+            corner_radius=6,
+            fg_color="#16a34a",
+            hover_color="#15803d",
+            command=self._start_inapp_update
+        )
+        self.update_banner_btn.pack(side="right", padx=10, pady=6)
+        self.cached_update_info: Optional[Dict[str, Any]] = None
 
         # Clipboard Auto-Detect Toast Banner
         self.clip_banner = ctk.CTkFrame(self.main_container, fg_color="#1e3a8a", corner_radius=8)
@@ -1197,6 +1226,143 @@ class ArgusStudioApp(ctk.CTk):
 
         ctk.CTkLabel(diag_row, text=f"Runtime Log: {os.path.basename(LOG_FILE)}", font=ctk.CTkFont(size=12), text_color="gray70").pack(side="left")
         ctk.CTkButton(diag_row, text="Open Log File", width=120, height=30, fg_color="#1f2937", hover_color="#374151", command=self._open_log_file).pack(side="right")
+
+        # 5. Seamless In-App Updates
+        update_card = ctk.CTkFrame(self.view_settings, fg_color="#131722", corner_radius=10)
+        update_card.pack(fill="x", pady=10)
+
+        ctk.CTkLabel(update_card, text="Seamless Software Updates", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=16, pady=(16, 4))
+        
+        up_desc = ctk.CTkLabel(
+            update_card,
+            text=f"Installed Version: v{APP_VERSION} • Receives features and YouTube anti-bot patches in-place without manual reinstallations.",
+            font=ctk.CTkFont(size=11),
+            text_color="gray60",
+            anchor="w"
+        )
+        up_desc.pack(anchor="w", padx=16, pady=(0, 10))
+
+        up_row = ctk.CTkFrame(update_card, fg_color="transparent")
+        up_row.pack(fill="x", padx=16, pady=(0, 12))
+
+        self.update_status_label = ctk.CTkLabel(up_row, text=f"Argus Studio v{APP_VERSION}", font=ctk.CTkFont(size=12))
+        self.update_status_label.pack(side="left")
+
+        self.check_update_btn = ctk.CTkButton(
+            up_row,
+            text="Check for Updates",
+            width=140,
+            height=32,
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#2563eb",
+            hover_color="#1d4ed8",
+            command=lambda: self._check_updates_async(show_popup_if_none=True)
+        )
+        self.check_update_btn.pack(side="right", padx=(8, 0))
+
+        self.apply_update_btn = ctk.CTkButton(
+            up_row,
+            text="Update Now",
+            width=120,
+            height=32,
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#16a34a",
+            hover_color="#15803d",
+            command=self._start_inapp_update
+        )
+
+        self.update_pbar = ctk.CTkProgressBar(update_card, height=6, progress_color="#16a34a")
+        self.update_plbl = ctk.CTkLabel(update_card, text="", font=ctk.CTkFont(size=11), text_color="gray60")
+
+    def _check_updates_async(self, show_popup_if_none: bool = False):
+        self.check_update_btn.configure(state="disabled", text="Checking...")
+        self.update_status_label.configure(text="Contacting update server...", text_color="gray70")
+
+        def _worker():
+            custom_endpoint = self.config_data.get("update_server") or None
+            mgr = UpdateManager(current_version=APP_VERSION, custom_endpoint=custom_endpoint)
+            info = mgr.check_for_updates()
+            self.after(0, self._on_update_check_result, info, show_popup_if_none)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_update_check_result(self, info: Dict[str, Any], show_popup_if_none: bool):
+        self.check_update_btn.configure(state="normal", text="Check for Updates")
+        self.cached_update_info = info
+
+        if info.get("update_available"):
+            latest = info.get("latest_version")
+            self.update_status_label.configure(
+                text=f"🚀 Version v{latest} available!",
+                text_color="#10b981"
+            )
+            self.apply_update_btn.pack(side="right", padx=(8, 0))
+
+            # Trigger Top Alert Banner
+            self.update_banner_lbl.configure(text=f"🎉 Update Available: Argus Studio v{latest} is ready!")
+            self.update_banner.grid(row=2, column=0, sticky="ew", padx=20, pady=(6, 0))
+
+            if show_popup_if_none:
+                notes = info.get("release_notes", "")
+                if messagebox.askyesno(
+                    "Update Available",
+                    f"A new version of Argus Studio (v{latest}) is available!\n\nRelease Notes:\n{notes}\n\nWould you like to install the update now?"
+                ):
+                    self._start_inapp_update()
+        else:
+            err = info.get("error")
+            if err:
+                self.update_status_label.configure(text=f"⚠️ {err}", text_color="#f59e0b")
+                if show_popup_if_none:
+                    messagebox.showwarning("Update Check", f"Could not check for updates:\n{err}")
+            else:
+                self.update_status_label.configure(text=f"● You are running the latest version (v{APP_VERSION})", text_color="#10b981")
+                if show_popup_if_none:
+                    messagebox.showinfo("Up to Date", f"Argus Studio v{APP_VERSION} is the latest available version.")
+
+    def _start_inapp_update(self):
+        if not self.cached_update_info or not self.cached_update_info.get("download_url"):
+            messagebox.showinfo("Update", "No update download package available.")
+            return
+
+        download_url = self.cached_update_info["download_url"]
+        self.apply_update_btn.configure(state="disabled", text="Updating...")
+        self.update_banner_btn.configure(state="disabled", text="Updating...")
+
+        self.update_pbar.pack(fill="x", padx=16, pady=(0, 6))
+        self.update_pbar.set(0)
+        self.update_plbl.pack(anchor="w", padx=16, pady=(0, 12))
+        self.update_plbl.configure(text="Connecting to download mirror...")
+
+        def _worker():
+            def _prog(msg: str, frac: float):
+                self.after(0, lambda: (
+                    self.update_pbar.set(frac),
+                    self.update_plbl.configure(text=msg)
+                ))
+            try:
+                mgr = UpdateManager(current_version=APP_VERSION)
+                staged = mgr.download_update(download_url, progress_callback=_prog)
+                self.after(0, self._on_update_ready, staged, mgr)
+            except Exception as e:
+                self.after(0, self._on_update_failed, str(e))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_update_ready(self, staged_path: str, mgr: UpdateManager):
+        self.update_plbl.configure(text="Applying update in-place...")
+        try:
+            # Performs seamless hot-swap / background silent installer execution
+            mgr.apply_update(staged_path, restart=True)
+        except Exception as e:
+            self._on_update_failed(str(e))
+
+    def _on_update_failed(self, err_msg: str):
+        self.update_pbar.pack_forget()
+        self.update_plbl.pack_forget()
+        self.apply_update_btn.configure(state="normal", text="Update Now")
+        self.update_banner_btn.configure(state="normal", text="Update Now")
+        messagebox.showerror("Update Failed", f"Unable to automatically apply update:\n\n{err_msg}")
 
     def _open_log_file(self):
         if os.path.exists(LOG_FILE):

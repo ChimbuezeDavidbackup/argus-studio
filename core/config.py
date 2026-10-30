@@ -9,6 +9,8 @@ import shutil
 import sys
 from typing import Any, Dict, List
 
+APP_VERSION = "2.2.0"
+
 
 def get_data_dir() -> str:
     """Get platform-appropriate application data directory."""
@@ -74,6 +76,8 @@ def load_config() -> Dict[str, Any]:
         "download_subtitles": False,
         "subtitle_lang": "en",
         "embed_subtitles": True,
+        "auto_check_updates": True,
+        "update_server": "",
         "web_port": 8000,
         "web_host": "0.0.0.0",
     }

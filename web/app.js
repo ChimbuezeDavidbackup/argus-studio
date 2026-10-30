@@ -88,6 +88,11 @@ async function checkSystemStatus() {
     const data = await res.json();
     const banner = document.getElementById("ffmpeg-banner");
     const statusLbl = document.getElementById("ffmpeg-status-lbl");
+    const verLbl = document.getElementById("app-version-val");
+
+    if (verLbl && data.version) {
+      verLbl.innerText = `v${data.version}`;
+    }
 
     if (data.ffmpeg_available) {
       if (banner) banner.style.display = "none";
@@ -104,6 +109,39 @@ async function checkSystemStatus() {
     }
   } catch (e) {
     console.error("System check error", e);
+  }
+}
+
+// In-App Updates Check
+async function checkWebUpdates() {
+  const btn = document.getElementById("check-update-btn");
+  const msg = document.getElementById("update-msg");
+  if (btn) btn.innerText = "Checking...";
+  try {
+    const res = await fetch("/api/system/update/check");
+    const data = await res.json();
+    if (data.update_available) {
+      if (msg) {
+        msg.innerHTML = `<span style="color:var(--success); font-weight:600">🎉 Version v${data.latest_version} available!</span> <a href="${data.download_url}" target="_blank" class="pill-btn" style="background:var(--accent); color:#fff; text-decoration:none; padding:4px 8px; border-radius:4px; font-size:0.75rem">Download</a>`;
+      }
+    } else if (data.error) {
+      if (msg) {
+        msg.innerText = `⚠️ ${data.error}`;
+        msg.style.color = "var(--warning)";
+      }
+    } else {
+      if (msg) {
+        msg.innerText = "● You are running the latest version";
+        msg.style.color = "var(--success)";
+      }
+    }
+  } catch (e) {
+    if (msg) {
+      msg.innerText = "Error checking updates.";
+      msg.style.color = "var(--danger)";
+    }
+  } finally {
+    if (btn) btn.innerText = "Check for Updates";
   }
 }
 

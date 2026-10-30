@@ -19,6 +19,7 @@ from core.config import (
     load_library,
     save_library,
     get_data_dir,
+    APP_VERSION,
 )
 from core.engine import (
     DownloaderEngine,
@@ -28,6 +29,7 @@ from core.engine import (
 )
 from core.models import DownloadTask
 from core.queue import QueueManager
+from core.updater import UpdateManager
 
 app = FastAPI(
     title="Argus Studio API",
@@ -149,8 +151,32 @@ def get_system_status():
         "max_concurrent": queue_mgr.max_concurrent,
         "download_dir": cfg.get("download_dir"),
         "data_dir": get_data_dir(),
-        "version": "2.2.0",
+        "version": APP_VERSION,
     }
+
+
+@app.get("/api/system/update/check")
+def check_for_updates():
+    cfg = load_config()
+    custom_endpoint = cfg.get("update_server") or None
+    mgr = UpdateManager(current_version=APP_VERSION, custom_endpoint=custom_endpoint)
+    return mgr.check_for_updates()
+
+
+@app.post("/api/system/update/apply")
+def apply_update_endpoint():
+    cfg = load_config()
+    custom_endpoint = cfg.get("update_server") or None
+    mgr = UpdateManager(current_version=APP_VERSION, custom_endpoint=custom_endpoint)
+    info = mgr.check_for_updates()
+    if not info.get("update_available") or not info.get("download_url"):
+        raise HTTPException(status_code=400, detail="No update payload available to apply.")
+    try:
+        staged_path = mgr.download_update(info["download_url"])
+        mgr.apply_update(staged_path, restart=True)
+        return {"status": "applying", "message": "Update downloaded. Restarting application..."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/system/ffmpeg/install")

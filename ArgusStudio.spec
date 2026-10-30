@@ -20,6 +20,7 @@ hiddenimports = [
     'core.queue',
     'core.config',
     'core.models',
+    'core.updater',
     'server.api',
     'uvicorn',
     'fastapi',
