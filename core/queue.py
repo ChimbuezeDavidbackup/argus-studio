@@ -2,6 +2,7 @@
 Asynchronous multi-worker queue manager with multi-subscriber progress notifications.
 """
 
+import os
 import re
 import threading
 import time
@@ -126,12 +127,30 @@ class QueueManager:
         return added
 
     def cancel_task(self, task_id: str):
+        """Immediately abort active download or cancel pending queued task."""
         with self._lock:
             task = self.tasks.get(task_id)
             if task and task.status in ("queued", "downloading"):
                 task.status = "canceled"
                 task.error_msg = "Download canceled by user."
+                task.abort_event.set()
+                task.speed = "--"
+                task.eta = "--"
                 self._notify_updated(task)
+
+    def retry_task(self, task_id: str) -> Optional[DownloadTask]:
+        """Reset failed or canceled task and re-insert into active queue rotation."""
+        with self._lock:
+            task = self.tasks.get(task_id)
+            if task and task.status in ("failed", "canceled"):
+                task.reset_for_retry()
+                # Bring to end of queue order or maintain position
+                if task_id in self.task_order:
+                    self.task_order.remove(task_id)
+                self.task_order.append(task_id)
+                self._notify_updated(task)
+                return task
+        return None
 
     def clear_completed(self):
         with self._lock:
@@ -239,8 +258,13 @@ class QueueManager:
                 rate_limit_bytes=task.rate_limit_bytes,
                 browser_cookies=task.browser_cookies,
                 cookie_file=task.cookie_file,
+                abort_event=task.abort_event,
                 progress_callback=task_progress_hook,
             )
+            # Accurate completion verification (no false positives)
+            if not saved_file or not os.path.exists(saved_file) or os.path.getsize(saved_file) == 0:
+                raise RuntimeError("File muxing failed or output was empty.")
+
             task.saved_path = saved_file
             task.status = "completed"
             task.progress = 1.0
@@ -251,9 +275,13 @@ class QueueManager:
             self._notify_completed(task)
 
         except Exception as e:
-            if task.status != "canceled":
+            if task.status != "canceled" and not task.abort_event.is_set():
                 task.status = "failed"
                 task.error_msg = str(e)
+                self._notify_updated(task)
+            elif task.abort_event.is_set() or task.status == "canceled":
+                task.status = "canceled"
+                task.error_msg = "Download canceled by user."
                 self._notify_updated(task)
         finally:
             with self._lock:

@@ -389,6 +389,7 @@ class DownloaderEngine:
         rate_limit_bytes: Optional[int] = None,
         browser_cookies: Optional[str] = None,
         cookie_file: Optional[str] = None,
+        abort_event: Optional[Any] = None,
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
     ) -> Optional[str]:
         """Download media with rich options and live progress notifications."""
@@ -396,6 +397,8 @@ class DownloaderEngine:
 
         def yt_progress_hook(d: Dict[str, Any]):
             nonlocal downloaded_file
+            if abort_event and abort_event.is_set():
+                raise RuntimeError("Download aborted by user.")
             if d.get("status") == "finished":
                 filename = d.get("filename")
                 if filename:
@@ -405,6 +408,8 @@ class DownloaderEngine:
 
         def yt_postprocessor_hook(d: Dict[str, Any]):
             nonlocal downloaded_file
+            if abort_event and abort_event.is_set():
+                raise RuntimeError("Download aborted by user.")
             if d.get("status") == "finished":
                 info = d.get("info_dict", {})
                 fp = info.get("filepath") or d.get("filename")

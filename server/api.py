@@ -351,6 +351,15 @@ def cancel_task(task_id: str):
     return {"status": "canceled", "task_id": task_id}
 
 
+@app.post("/api/queue/{task_id}/retry")
+def retry_task(task_id: str):
+    """Restart a failed or canceled download task."""
+    task = queue_mgr.retry_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found or not in a retryable state.")
+    return {"status": "retried", "task": task.to_dict()}
+
+
 @app.post("/api/queue/clear")
 def clear_completed_queue():
     queue_mgr.clear_completed()

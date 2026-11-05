@@ -146,7 +146,7 @@ class ArgusStudioApp(ctk.CTk):
         self.brand_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.brand_frame.pack(fill="x", padx=18, pady=(24, 20))
 
-        self.brand_icon = ctk.CTkLabel(self.brand_frame, text="⚡", font=ctk.CTkFont(size=24))
+        self.brand_icon = ctk.CTkLabel(self.brand_frame, text="▶", font=ctk.CTkFont(size=20, weight="bold"), text_color="#3b82f6")
         self.brand_icon.pack(side="left", padx=(0, 8))
 
         self.brand_title = ctk.CTkLabel(self.brand_frame, text="Argus Studio", font=ctk.CTkFont(size=18, weight="bold"))
@@ -155,10 +155,10 @@ class ArgusStudioApp(ctk.CTk):
         # Nav Buttons
         self.nav_btns = {}
         nav_items = [
-            ("downloader", "📥  Downloader"),
-            ("queue", "📋  Queue (0)"),
-            ("library", "📁  Library"),
-            ("settings", "⚙️  Settings")
+            ("downloader", "Downloader"),
+            ("queue", "Queue (0)"),
+            ("library", "Library"),
+            ("settings", "Settings")
         ]
 
         for key, label in nav_items:
@@ -205,7 +205,7 @@ class ArgusStudioApp(ctk.CTk):
         self.ffmpeg_banner = ctk.CTkFrame(self.main_container, fg_color="#7c2d12", corner_radius=8)
         self.ffmpeg_banner_lbl = ctk.CTkLabel(
             self.ffmpeg_banner,
-            text="⚠️ FFmpeg not found: Required for 1080p+ merging & MP3 audio conversion.",
+            text="Warning: FFmpeg not found. Required for 1080p+ merging and MP3 conversion.",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#fdba74"
         )
@@ -230,7 +230,7 @@ class ArgusStudioApp(ctk.CTk):
         self.update_banner = ctk.CTkFrame(self.main_container, fg_color="#14532d", corner_radius=8)
         self.update_banner_lbl = ctk.CTkLabel(
             self.update_banner,
-            text="🎉 Update Available: Argus Studio update is ready!",
+            text="Update Available: Argus Studio update is ready",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#86efac"
         )
@@ -253,7 +253,7 @@ class ArgusStudioApp(ctk.CTk):
         self.clip_banner = ctk.CTkFrame(self.main_container, fg_color="#1e3a8a", corner_radius=8)
         self.clip_banner_label = ctk.CTkLabel(
             self.clip_banner,
-            text="📋 Media link detected in clipboard! Click to Load",
+            text="Media link detected in clipboard. Click to load",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#93c5fd"
         )
@@ -330,8 +330,8 @@ class ArgusStudioApp(ctk.CTk):
         self.url_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         ctk.CTkButton(url_row, text="Paste", width=65, height=40, corner_radius=8, fg_color="#1f2937", hover_color="#374151", command=self._paste_url).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(url_row, text="📑 Batch URLs", width=105, height=40, corner_radius=8, fg_color="#374151", hover_color="#4b5563", command=self._open_batch_modal).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(url_row, text="📂 Playlist", width=90, height=40, corner_radius=8, fg_color="#4f46e5", hover_color="#4338ca", command=self._open_playlist_inspector).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(url_row, text="Batch URLs", width=95, height=40, corner_radius=8, fg_color="#374151", hover_color="#4b5563", command=self._open_batch_modal).pack(side="left", padx=(0, 6))
+        ctk.CTkButton(url_row, text="Playlist", width=80, height=40, corner_radius=8, fg_color="#4f46e5", hover_color="#4338ca", command=self._open_playlist_inspector).pack(side="left", padx=(0, 6))
 
         self.fetch_btn = ctk.CTkButton(url_row, text="Fetch Media", width=110, height=40, corner_radius=8, font=ctk.CTkFont(weight="bold"), fg_color="#2563eb", hover_color="#1d4ed8", command=self._start_fetch_metadata)
         self.fetch_btn.pack(side="right")
@@ -399,7 +399,7 @@ class ArgusStudioApp(ctk.CTk):
         row_a = ctk.CTkFrame(adv_inner, fg_color="transparent")
         row_a.pack(fill="x", pady=4)
 
-        ctk.CTkLabel(row_a, text="🎵 Audio Options:", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(row_a, text="Audio Options:", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 10))
         self.audio_codec_combo = ctk.CTkComboBox(row_a, values=["MP3 (320 kbps)", "MP3 (192 kbps)", "M4A (AAC)", "FLAC (Lossless)", "WAV"], width=150, height=28)
         self.audio_codec_combo.set("MP3 (320 kbps)")
         self.audio_codec_combo.pack(side="left", padx=(0, 12))
@@ -412,7 +412,7 @@ class ArgusStudioApp(ctk.CTk):
         row_b = ctk.CTkFrame(adv_inner, fg_color="transparent")
         row_b.pack(fill="x", pady=6)
 
-        ctk.CTkLabel(row_b, text="💬 Subtitles (CC):", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(row_b, text="Subtitles (CC):", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 10))
         self.sub_switch = ctk.CTkCheckBox(row_b, text="Download Subtitles", font=ctk.CTkFont(size=12))
         self.sub_switch.pack(side="left", padx=(0, 12))
 
@@ -428,7 +428,7 @@ class ArgusStudioApp(ctk.CTk):
         row_c = ctk.CTkFrame(adv_inner, fg_color="transparent")
         row_c.pack(fill="x", pady=6)
 
-        self.clip_switch = ctk.CTkCheckBox(row_c, text="✂️ Clip Section (Timestamps)", font=ctk.CTkFont(size=12, weight="bold"))
+        self.clip_switch = ctk.CTkCheckBox(row_c, text="Clip Section (Timestamps)", font=ctk.CTkFont(size=12, weight="bold"))
         self.clip_switch.pack(side="left", padx=(0, 12))
 
         ctk.CTkLabel(row_c, text="Start:", font=ctk.CTkFont(size=11), text_color="gray70").pack(side="left", padx=(4, 4))
@@ -454,7 +454,7 @@ class ArgusStudioApp(ctk.CTk):
 
         self.add_queue_btn = ctk.CTkButton(
             btn_row,
-            text="➕  Add to Download Queue",
+            text="Add to Download Queue",
             height=44,
             corner_radius=8,
             font=ctk.CTkFont(size=13, weight="bold"),
@@ -466,7 +466,7 @@ class ArgusStudioApp(ctk.CTk):
 
         self.quick_download_btn = ctk.CTkButton(
             btn_row,
-            text="⬇  Download Now & Open Queue",
+            text="Download Now & Open Queue",
             height=44,
             corner_radius=8,
             font=ctk.CTkFont(size=13, weight="bold"),
@@ -941,17 +941,21 @@ class ArgusStudioApp(ctk.CTk):
         info_lbl.pack(side="left")
 
         if task.status in ("queued", "downloading"):
-            cancel_btn = ctk.CTkButton(bot, text="✕ Cancel", width=65, height=24, corner_radius=4, fg_color="#374151", hover_color="#4b5563", command=lambda tid=task.id: self._cancel_task(tid))
+            cancel_btn = ctk.CTkButton(bot, text="Cancel", width=65, height=24, corner_radius=4, fg_color="#374151", hover_color="#4b5563", command=lambda tid=task.id: self._cancel_task(tid))
             cancel_btn.pack(side="right")
         elif task.status == "completed":
-            open_btn = ctk.CTkButton(bot, text="▶ Play", width=60, height=24, corner_radius=4, fg_color="#10b981", hover_color="#059669", command=lambda p=task.saved_path: self._play_media(p))
+            open_btn = ctk.CTkButton(bot, text="Play", width=60, height=24, corner_radius=4, fg_color="#10b981", hover_color="#059669", command=lambda p=task.saved_path: self._play_media(p))
             open_btn.pack(side="right", padx=(4, 0))
+        elif task.status in ("failed", "canceled"):
+            retry_btn = ctk.CTkButton(bot, text="Retry", width=60, height=24, corner_radius=4, fg_color="#2563eb", hover_color="#1d4ed8", command=lambda tid=task.id: self._retry_task(tid))
+            retry_btn.pack(side="right")
 
         self.queue_widgets[task.id] = {
             "title": title_lbl,
             "status": status_lbl,
             "pbar": pbar,
-            "info": info_lbl
+            "info": info_lbl,
+            "last_status": task.status
         }
 
     def _get_status_color(self, status: str) -> str:
@@ -967,6 +971,11 @@ class ArgusStudioApp(ctk.CTk):
 
     def _cancel_task(self, task_id: str):
         self.queue_mgr.cancel_task(task_id)
+        self._refresh_queue_view()
+
+    def _retry_task(self, task_id: str):
+        self.queue_mgr.retry_task(task_id)
+        self._refresh_queue_view()
 
     def _on_queue_task_updated(self, task: DownloadTask):
         self.after(0, self._apply_task_update_to_ui, task)
@@ -975,11 +984,16 @@ class ArgusStudioApp(ctk.CTk):
         self._update_queue_badge()
         w = self.queue_widgets.get(task.id)
         if w:
+            prev_status = w.get("last_status")
             w["title"].configure(text=task.title)
             w["status"].configure(text=task.status.upper(), text_color=self._get_status_color(task.status))
             safe_prog = max(0.0, min(1.0, float(task.progress or 0.0)))
             w["pbar"].set(safe_prog)
             w["info"].configure(text=f"{task.speed}  •  {task.size_info}  •  {task.eta}")
+            w["last_status"] = task.status
+            # If status changed to a finished state, refresh view so buttons update
+            if prev_status != task.status and task.status in ("completed", "failed", "canceled"):
+                self._render_queue_list()
 
     def _on_queue_task_completed(self, task: DownloadTask):
         self.after(0, self._record_completed_task_to_library, task)
@@ -1006,7 +1020,7 @@ class ArgusStudioApp(ctk.CTk):
         active = sum(1 for t in tasks if t.status in ("queued", "downloading"))
         q_btn = self.nav_btns.get("queue")
         if q_btn:
-            q_btn.configure(text=f"📋  Queue ({active})")
+            q_btn.configure(text=f"Queue ({active})")
 
     # ================= 5. SMART CLIPBOARD WATCHER (THREAD-SAFE) ================= #
 
@@ -1055,8 +1069,8 @@ class ArgusStudioApp(ctk.CTk):
         self.lib_count_label = ctk.CTkLabel(bar, text=f"Total Downloads: {len(self.library_items)}", font=ctk.CTkFont(size=13, weight="bold"))
         self.lib_count_label.pack(side="left")
 
-        ctk.CTkButton(bar, text="🗑️ Clear Library", width=120, height=32, fg_color="#dc2626", hover_color="#b91c1c", command=self._clear_library_prompt).pack(side="right", padx=(8, 0))
-        ctk.CTkButton(bar, text="📂 Open Download Folder", width=160, height=32, fg_color="#1f2937", hover_color="#374151", command=self._open_downloads_folder).pack(side="right")
+        ctk.CTkButton(bar, text="Clear Library", width=120, height=32, fg_color="#dc2626", hover_color="#b91c1c", command=self._clear_library_prompt).pack(side="right", padx=(8, 0))
+        ctk.CTkButton(bar, text="Open Download Folder", width=160, height=32, fg_color="#1f2937", hover_color="#374151", command=self._open_downloads_folder).pack(side="right")
 
         self.lib_scroll = ctk.CTkScrollableFrame(self.view_library, fg_color="#0c0e14", corner_radius=10)
         self.lib_scroll.grid(row=1, column=0, sticky="nsew")
@@ -1089,9 +1103,9 @@ class ArgusStudioApp(ctk.CTk):
             action_frame.pack(side="right", padx=12, pady=10)
 
             file_path = item.get("path", "")
-            ctk.CTkButton(action_frame, text="▶ Play", width=65, height=30, corner_radius=6, fg_color="#10b981", hover_color="#059669", command=lambda p=file_path: self._play_media(p)).pack(side="left", padx=4)
-            ctk.CTkButton(action_frame, text="📂 Show", width=65, height=30, corner_radius=6, fg_color="#1f2937", hover_color="#374151", command=lambda p=file_path: self._show_in_explorer(p)).pack(side="left", padx=4)
-            ctk.CTkButton(action_frame, text="✕", width=32, height=30, corner_radius=6, fg_color="#374151", hover_color="#ef4444", command=lambda itm=item: self._delete_library_item(itm)).pack(side="left", padx=(4, 0))
+            ctk.CTkButton(action_frame, text="Play", width=60, height=30, corner_radius=6, fg_color="#10b981", hover_color="#059669", command=lambda p=file_path: self._play_media(p)).pack(side="left", padx=4)
+            ctk.CTkButton(action_frame, text="Show", width=60, height=30, corner_radius=6, fg_color="#1f2937", hover_color="#374151", command=lambda p=file_path: self._show_in_explorer(p)).pack(side="left", padx=4)
+            ctk.CTkButton(action_frame, text="Remove", width=65, height=30, corner_radius=6, fg_color="#374151", hover_color="#ef4444", command=lambda itm=item: self._delete_library_item(itm)).pack(side="left", padx=(4, 0))
 
     def _delete_library_item(self, item: Dict[str, Any]):
         title = item.get("title", "this item")
@@ -1293,13 +1307,13 @@ class ArgusStudioApp(ctk.CTk):
         if info.get("update_available"):
             latest = info.get("latest_version")
             self.update_status_label.configure(
-                text=f"🚀 Version v{latest} available!",
+                text=f"Version v{latest} available",
                 text_color="#10b981"
             )
             self.apply_update_btn.pack(side="right", padx=(8, 0))
 
             # Trigger Top Alert Banner
-            self.update_banner_lbl.configure(text=f"🎉 Update Available: Argus Studio v{latest} is ready!")
+            self.update_banner_lbl.configure(text=f"Update Available: Argus Studio v{latest} is ready")
             self.update_banner.grid(row=2, column=0, sticky="ew", padx=20, pady=(6, 0))
 
             if show_popup_if_none:
@@ -1312,7 +1326,7 @@ class ArgusStudioApp(ctk.CTk):
         else:
             err = info.get("error")
             if err:
-                self.update_status_label.configure(text=f"⚠️ {err}", text_color="#f59e0b")
+                self.update_status_label.configure(text=f"Warning: {err}", text_color="#f59e0b")
                 if show_popup_if_none:
                     messagebox.showwarning("Update Check", f"Could not check for updates:\n{err}")
             else:
@@ -1381,7 +1395,7 @@ class ArgusStudioApp(ctk.CTk):
             self.ffmpeg_banner.grid_forget()
         else:
             self.ffmpeg_status_label.configure(
-                text="⚠️ FFmpeg: Not Installed on this system",
+                text="FFmpeg: Not Installed on this system",
                 text_color="#ef4444"
             )
             self.ffmpeg_install_btn.configure(text="Install Portable FFmpeg", fg_color="#ea580c", hover_color="#c2410c")

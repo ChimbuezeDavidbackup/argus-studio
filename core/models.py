@@ -2,6 +2,7 @@
 Core data models for Argus Studio.
 """
 
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -80,6 +81,18 @@ class DownloadTask:
         self.error_msg: Optional[str] = None
         self.saved_path: Optional[str] = None
         self.created_at = time.time()
+        self.abort_event = threading.Event()
+
+    def reset_for_retry(self):
+        """Reset task state to re-queue after a failure or cancellation."""
+        self.status = "queued"
+        self.progress = 0.0
+        self.speed = "--"
+        self.eta = "--:--"
+        self.size_info = "0 MB / 0 MB"
+        self.error_msg = None
+        self.saved_path = None
+        self.abort_event.clear()
 
     def get_badge_text(self) -> str:
         if self.format_type == "audio":

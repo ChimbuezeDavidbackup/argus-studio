@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#2563eb">
-  <meta name="description" content="High-Performance Desktop, Web & Mobile Media Ingestion Suite">
+  <meta name="description" content="High-Performance Media Ingestion Suite">
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/png" href="/app_icon.png">
   <link rel="apple-touch-icon" href="/app_icon.png">
@@ -12,6 +12,20 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <!-- Network Offline Supervisor Banner -->
+  <div id="offline-banner" class="offline-banner" style="display:none">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23"></line>
+      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+      <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+      <line x1="12" y1="20" x2="12.01" y2="20"></line>
+    </svg>
+    <span>Internet connection offline. Downloads will resume automatically when connected.</span>
+  </div>
+
   <div class="app-layout">
     <!-- Desktop Sidebar -->
     <aside class="sidebar">
@@ -20,14 +34,42 @@
         <h1>Argus Studio</h1>
       </div>
       <nav class="nav-links">
-        <button class="nav-item active" data-tab="downloader">📥 Downloader</button>
-        <button class="nav-item" data-tab="queue">📋 Queue (<span id="badge-queue-count">0</span>)</button>
-        <button class="nav-item" data-tab="library">📁 Library</button>
-        <button class="nav-item" data-tab="settings">⚙️ Settings</button>
+        <button class="nav-item active" data-tab="downloader">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Downloader</span>
+        </button>
+        <button class="nav-item" data-tab="queue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          <span>Queue (<span id="badge-queue-count">0</span>)</span>
+        </button>
+        <button class="nav-item" data-tab="library">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Library</span>
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Settings</span>
+        </button>
       </nav>
       <div class="sidebar-status">
         <div class="status-dot"></div>
-        <span>Universal Engine Active</span>
+        <span>Ready</span>
       </div>
     </aside>
 
@@ -35,12 +77,17 @@
     <main class="main-content">
       <header class="top-bar">
         <h2 id="top-title">Media Downloader</h2>
-        <span style="font-size:0.8rem; color:var(--text-muted)">v2.2.0 • Web/Mobile/Desktop</span>
+        <span style="font-size:0.8rem; color:var(--text-muted)">Universal Media Suite</span>
       </header>
 
-      <!-- Alert Banner -->
+      <!-- FFmpeg Alert Banner -->
       <div id="ffmpeg-banner" class="banner banner-warning" style="display:none">
-        <span>⚠️ FFmpeg required for high-res muxing and MP3 conversion.</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>FFmpeg required for 1080p+ merging and MP3 audio conversion.</span>
         <button class="banner-btn" onclick="installFFmpeg()">Install Portable FFmpeg</button>
       </div>
 
@@ -49,21 +96,27 @@
         <div class="card">
           <div class="input-row">
             <input type="text" id="url-input" placeholder="Paste YouTube, Vimeo, or media URL...">
-            <button class="btn btn-primary" id="fetch-btn" onclick="fetchMetadata()">Fetch Media</button>
+            <button class="btn btn-primary" id="fetch-btn" onclick="fetchMetadata()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <span>Fetch Media</span>
+            </button>
           </div>
 
           <!-- Preview -->
           <div class="preview-grid" style="margin-top:16px">
             <div class="preview-thumb">
               <img id="thumb-img" style="width:100%; height:100%; object-fit:cover; display:none; border-radius:8px" alt="Thumbnail">
-              <span id="thumb-placeholder">[ Media Preview ]</span>
+              <span id="thumb-placeholder">Media Preview</span>
             </div>
             <div>
               <h3 id="meta-title" style="font-size:1.05rem; margin-bottom:4px">Paste a media link above</h3>
               <p id="meta-author" style="font-size:0.85rem; color:var(--text-secondary)">Author: -</p>
               <p id="meta-stats" style="font-size:0.85rem; color:var(--text-muted); margin-top:2px">Duration: -</p>
 
-              <div style="margin-top:10px">
+              <div style="margin-top:12px">
                 <span style="font-size:0.8rem; font-weight:700; color:var(--text-secondary)">Select Format & Quality:</span>
                 <div id="pills-container" class="pills-row">
                   <button class="pill-btn active">Best (Video)</button>
@@ -75,8 +128,21 @@
           </div>
 
           <div style="display:flex; gap:10px; margin-top:18px">
-            <button class="btn btn-primary" style="flex:1" onclick="queueMedia(false)">➕ Add to Queue</button>
-            <button class="btn btn-success" style="flex:1" onclick="queueMedia(true)">⬇ Download & Open Queue</button>
+            <button class="btn btn-primary" style="flex:1" onclick="queueMedia(false)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Add to Queue</span>
+            </button>
+            <button class="btn btn-success" style="flex:1" onclick="queueMedia(true)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Download & Open Queue</span>
+            </button>
           </div>
         </div>
       </section>
@@ -100,57 +166,6 @@
 
       <!-- Tab 4: Settings View -->
       <section id="view-settings" class="view-panel">
-        <!-- Session Authentication & Verification Bypass Card -->
-        <div class="card" id="card-session-auth">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
-            <div>
-              <h3 style="margin-bottom:4px">Session Authentication & Verification Bypass</h3>
-              <p style="font-size:0.85rem; color:var(--text-secondary)">Bypass YouTube client verification on cloud servers and datacenter IPs.</p>
-            </div>
-            <span id="auth-status-badge" class="pill-btn" style="background:#78350f; color:#fde68a; font-size:0.75rem; pointer-events:none;">Cloud Restricted (No Cookies)</span>
-          </div>
-
-          <div style="background:rgba(30,58,138,0.25); border:1px solid rgba(59,130,246,0.3); border-radius:8px; padding:12px; margin:12px 0; font-size:0.85rem; color:#bfdbfe; line-height:1.5;">
-            ℹ️ Cloud hosting providers share datacenter network ranges that YouTube restricts. Providing your session cookies (exported from your browser) completely bypasses verification.
-          </div>
-
-          <label style="display:block; font-size:0.78rem; font-weight:700; color:var(--text-secondary); margin-bottom:6px; letter-spacing:0.5px;">NETSCAPE COOKIES.TXT CONTENT</label>
-          <textarea id="cookies-input" rows="5" style="width:100%; font-family:monospace; font-size:0.8rem; background:var(--bg-primary); color:var(--text-primary); border:1px solid var(--border); border-radius:6px; padding:10px; resize:vertical;" placeholder="# Netscape HTTP Cookie File&#10;# Exported via browser extension or developer tools&#10;.youtube.com&#9;TRUE&#9;/&#9;TRUE&#9;1789000000&#9;VISITOR_INFO1_LIVE&#9;..."></textarea>
-
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:8px; flex-wrap:wrap;">
-            <div>
-              <input type="file" id="cookie-file-upload" accept=".txt" style="display:none" onchange="handleCookieFileUpload(event)">
-              <button class="btn btn-secondary" onclick="document.getElementById('cookie-file-upload').click()" style="font-size:0.85rem; padding:8px 14px">📁 Upload cookies.txt</button>
-            </div>
-            <div style="display:flex; gap:8px;">
-              <button class="btn btn-secondary" onclick="clearCookies()" style="font-size:0.85rem; padding:8px 14px">🗑️ Clear</button>
-              <button class="btn btn-primary" onclick="saveCookiesText()" style="font-size:0.85rem; padding:8px 16px">✓ Save Cookies</button>
-            </div>
-          </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px;">
-            <div>
-              <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:4px">Player Client Profile</label>
-              <select id="client-profile-select" class="form-select" onchange="saveProfileSettings()" style="width:100%; padding:8px; background:var(--bg-primary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); font-size:0.85rem">
-                <option value="auto">Auto (Adaptive Multi-Client Fallback)</option>
-                <option value="ios">iOS Client (Recommended for Cloud IPs)</option>
-                <option value="android">Android Client</option>
-                <option value="tv">TV Client</option>
-                <option value="web">Web Client</option>
-              </select>
-            </div>
-            <div>
-              <label style="display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:4px">Custom Proxy URL (Optional)</label>
-              <input type="text" id="proxy-url-input" placeholder="http://user:pass@host:port" onchange="saveProfileSettings()" style="width:100%; padding:8px; background:var(--bg-primary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); font-size:0.85rem">
-            </div>
-          </div>
-
-          <div style="margin-top:14px; display:flex; align-items:center; gap:10px;">
-            <button class="btn btn-secondary" onclick="verifyAuthConnection()" id="verify-conn-btn" style="font-size:0.85rem; padding:8px 14px">🛡️ Verify Connection</button>
-            <span id="verify-status-msg" style="font-size:0.82rem; color:var(--text-muted)"></span>
-          </div>
-        </div>
-
         <div class="card">
           <h3 style="margin-bottom:12px">Media Transcoding Engine</h3>
           <p id="ffmpeg-status-lbl" style="font-size:0.9rem; margin-bottom:14px">Checking FFmpeg...</p>
@@ -160,7 +175,7 @@
         <div class="card">
           <h3 style="margin-bottom:8px">Software Updates</h3>
           <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px">
-            Installed Version: <span id="app-version-val" style="font-weight:700; color:var(--text-primary)">v2.2.0</span>
+            Installed Version: <span id="app-version-val" style="font-weight:700; color:var(--text-primary)">v2.3.0</span>
           </p>
           <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
             <button class="btn btn-secondary" id="check-update-btn" onclick="checkWebUpdates()" style="font-size:0.85rem; padding:8px 14px">Check for Updates</button>
@@ -169,10 +184,10 @@
         </div>
 
         <div class="card">
-          <h3 style="margin-bottom:8px">Mobilization & Multi-Device Access</h3>
+          <h3 style="margin-bottom:8px">Multi-Device Access</h3>
           <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.5">
-            Argus Studio is accessible from any mobile device, tablet, or browser on your local network. 
-            Connect mobile phones via <code style="color:var(--accent)">http://&lt;your-ip&gt;:8000</code> and tap "Add to Home Screen" to use it as a native PWA.
+            Argus Studio is accessible from any mobile device, tablet, or desktop browser on your network. 
+            Connect mobile phones via your host IP and tap "Add to Home Screen" to use it as a standalone app.
           </p>
         </div>
       </section>
@@ -180,38 +195,39 @@
 
     <!-- Mobile Bottom Navigation Bar -->
     <nav class="bottom-nav">
-      <button class="nav-item active" data-tab="downloader">📥<span>Downloader</span></button>
-      <button class="nav-item" data-tab="queue">📋<span>Queue</span></button>
-      <button class="nav-item" data-tab="library">📁<span>Library</span></button>
-      <button class="nav-item" data-tab="settings">⚙️<span>Settings</span></button>
+      <button class="nav-item active" data-tab="downloader">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>Downloader</span>
+      </button>
+      <button class="nav-item" data-tab="queue">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"></line>
+          <line x1="8" y1="12" x2="21" y2="12"></line>
+          <line x1="8" y1="18" x2="21" y2="18"></line>
+          <line x1="3" y1="6" x2="3.01" y2="6"></line>
+          <line x1="3" y1="12" x2="3.01" y2="12"></line>
+          <line x1="3" y1="18" x2="3.01" y2="18"></line>
+        </svg>
+        <span>Queue</span>
+      </button>
+      <button class="nav-item" data-tab="library">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Library</span>
+      </button>
+      <button class="nav-item" data-tab="settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>Settings</span>
+      </button>
     </nav>
-  </div>
-
-  <!-- Client Verification Challenge Modal Dialog -->
-  <div id="verification-modal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); z-index:999; align-items:center; justify-content:center; padding:16px;">
-    <div style="background:#131722; border:1px solid #374151; border-radius:12px; max-width:440px; width:100%; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
-      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-        <div style="width:36px; height:36px; border-radius:8px; background:rgba(239,68,68,0.15); display:flex; align-items:center; justify-content:center; color:#ef4444; font-size:18px;">🛡️</div>
-        <h3 style="font-size:1.1rem; color:#f8fafc">Client Verification Challenge</h3>
-      </div>
-      <p style="font-size:0.85rem; color:#94a3b8; line-height:1.5; margin-bottom:16px;">
-        YouTube requested client verification for this server IP address.
-      </p>
-      <div style="background:rgba(255,255,255,0.03); border-radius:8px; padding:12px; margin-bottom:16px;">
-        <p style="font-size:0.82rem; font-weight:700; color:#e2e8f0; margin-bottom:6px;">Recommended Solutions:</p>
-        <ol style="font-size:0.8rem; color:#94a3b8; padding-left:18px; line-height:1.5;">
-          <li>Open <strong>Settings &gt; Session Auth</strong> to upload your browser cookies.txt file.</li>
-          <li>Switch the Client Profile to <strong>'iOS Client'</strong> under Settings.</li>
-        </ol>
-      </div>
-      <p style="font-size:0.78rem; color:#64748b; margin-bottom:20px; line-height:1.4;">
-        Argus Studio automatically routes requests through mobile profiles, but session cookies ensure uninterrupted access on cloud hosts.
-      </p>
-      <div style="display:flex; gap:10px; justify-content:flex-end;">
-        <button class="btn btn-primary" onclick="goToSessionAuthSettings()" style="flex:1">Open Session Auth Settings</button>
-        <button class="btn btn-secondary" onclick="closeVerificationModal()" style="padding:8px 16px">Dismiss</button>
-      </div>
-    </div>
   </div>
 
   <script src="/app.js"></script>
