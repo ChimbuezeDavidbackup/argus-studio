@@ -6,6 +6,7 @@ __pycache__/
 # PyInstaller / Build Artifacts
 build/
 dist/
+bin/
 *.spec
 !ArgusStudio.spec
 

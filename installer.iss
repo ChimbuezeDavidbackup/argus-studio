@@ -13,7 +13,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=dist
-OutputBaseFilename=ArgusStudio-Setup
+OutputBaseFilename=ArgusStudio-Setup-v2.2.0
 SetupIconFile=app_icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64
@@ -30,6 +30,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bin\ffmpeg.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
+Source: "bin\ffprobe.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "app_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "app_icon.png"; DestDir: "{app}"; Flags: ignoreversion
 Source: "web\*"; DestDir: "{app}\web"; Flags: ignoreversion recursesubdirs createallsubdirs
