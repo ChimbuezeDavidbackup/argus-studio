@@ -64,6 +64,7 @@ def get_default_download_dir() -> str:
 def load_config() -> Dict[str, Any]:
     default_cfg = {
         "download_dir": get_default_download_dir(),
+        "theme": "System",
         "default_format": "Video (MP4)",
         "default_quality": "best",
         "auth_mode": "None (Public Videos)",
