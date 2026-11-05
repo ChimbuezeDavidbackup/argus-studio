@@ -205,8 +205,9 @@ class DownloaderEngine:
             opts["ffmpeg_location"] = loc
 
         # Conditionally enable local Node.js runtime if present for JS challenge evaluation
-        if shutil.which("node"):
-            opts["js_runtimes"] = {"node": {}}
+        node_bin = shutil.which("node") or shutil.which("nodejs")
+        if node_bin:
+            opts["js_runtimes"] = {"node": {"path": node_bin}}
 
         # Resolve client profile (default to 'android' first for cloud / datacenter resilience)
         cfg = load_config()
@@ -220,7 +221,7 @@ class DownloaderEngine:
         elif profile == "web":
             clients = ["web", "mweb"]
         else:  # auto / adaptive
-            clients = ["android", "web", "ios"]
+            clients = ["android", "web"]
 
         # Client impersonation to bypass YouTube "Sign in to confirm you're not a bot"
         if use_fallback_clients:
@@ -299,26 +300,26 @@ class DownloaderEngine:
         cookie_file: Optional[str] = None
     ) -> Dict[str, Any]:
         """Extract metadata without downloading, with automatic anti-bot client fallback."""
-        # Try with anti-bot mobile clients first
-        ydl_opts = self._build_ydl_opts(
+        # Primary attempt: Standard extractor with JS runtime support
+        primary_opts = self._build_ydl_opts(
             browser_cookies=browser_cookies,
             cookie_file=cookie_file,
             base_opts={
                 "skip_download": True,
                 "extract_flat": "in_playlist",
-                "socket_timeout": 10,
+                "socket_timeout": 12,
             },
-            use_fallback_clients=True
+            use_fallback_clients=False
         )
 
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(primary_opts) as ydl:
                 raw_info = ydl.extract_info(url, download=False)
                 return ydl.sanitize_info(raw_info)
-        except Exception:
-            # Automatic fallback: try standard extractor without custom player_client
+        except Exception as e1:
+            # Secondary attempt: Android / mobile client fallback
             try:
-                fallback_opts = self._build_ydl_opts(
+                mobile_opts = self._build_ydl_opts(
                     browser_cookies=None,
                     cookie_file=None,
                     base_opts={
@@ -326,13 +327,13 @@ class DownloaderEngine:
                         "extract_flat": "in_playlist",
                         "socket_timeout": 12,
                     },
-                    use_fallback_clients=False
+                    use_fallback_clients=True
                 )
-                with yt_dlp.YoutubeDL(fallback_opts) as ydl:
+                with yt_dlp.YoutubeDL(mobile_opts) as ydl:
                     raw_info = ydl.extract_info(url, download=False)
                     return ydl.sanitize_info(raw_info)
             except Exception as e2:
-                friendly_err = self._handle_exception(e2)
+                friendly_err = self._handle_exception(e1 if "player response" not in str(e1) else e2)
                 raise RuntimeError(friendly_err) from e2
 
     def extract_playlist_entries(

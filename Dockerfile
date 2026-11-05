@@ -7,18 +7,20 @@ FROM python:3.11-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies including FFmpeg for DASH stream muxing & MP3 conversion
+# Install system dependencies including FFmpeg for DASH stream muxing & MP3 conversion, and Node.js for YouTube JS challenge evaluation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     ca-certificates \
     curl \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Python requirements
+# Install Python requirements with latest yt-dlp
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --upgrade yt-dlp -r requirements.txt
 
 # Copy application files
 COPY . .
