@@ -35,7 +35,7 @@ class UpdateManager:
     def __init__(
         self,
         current_version: str = APP_VERSION,
-        repo: str = "ChimbuezeDavid/argus-studio",
+        repo: str = "ChimbuezeDavidbackup/argus-studio",
         custom_endpoint: Optional[str] = None
     ):
         self.current_version = current_version

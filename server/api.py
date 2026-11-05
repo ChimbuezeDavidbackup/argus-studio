@@ -149,6 +149,14 @@ class ProfilePayload(BaseModel):
     proxy_url: Optional[str] = ""
 
 
+class SettingsPayload(BaseModel):
+    max_concurrent: Optional[int] = 2
+    default_quality: Optional[str] = "best"
+    default_format: Optional[str] = "video"
+    speed_limit: Optional[str] = "Unlimited"
+    embed_metadata: Optional[bool] = True
+
+
 # ================= REST API ROUTES ================= #
 
 @app.get("/api/system")
@@ -173,6 +181,37 @@ def check_network_connectivity():
         return {"connected": True}
     except Exception:
         return {"connected": False}
+
+
+@app.get("/api/settings")
+def get_settings():
+    cfg = load_config()
+    return {
+        "max_concurrent": queue_mgr.max_concurrent,
+        "default_quality": cfg.get("default_quality", "best"),
+        "default_format": cfg.get("default_format", "video"),
+        "speed_limit": cfg.get("speed_limit", "Unlimited"),
+        "embed_metadata": cfg.get("embed_metadata", True),
+    }
+
+
+@app.post("/api/settings")
+def update_settings(payload: SettingsPayload):
+    cfg = load_config()
+    if payload.max_concurrent is not None:
+        val = max(1, min(10, int(payload.max_concurrent)))
+        cfg["max_concurrent"] = val
+        queue_mgr.max_concurrent = val
+    if payload.default_quality is not None:
+        cfg["default_quality"] = payload.default_quality
+    if payload.default_format is not None:
+        cfg["default_format"] = payload.default_format
+    if payload.speed_limit is not None:
+        cfg["speed_limit"] = payload.speed_limit
+    if payload.embed_metadata is not None:
+        cfg["embed_metadata"] = payload.embed_metadata
+    save_config(cfg)
+    return {"status": "success", "settings": cfg}
 
 
 @app.get("/api/system/update/check")

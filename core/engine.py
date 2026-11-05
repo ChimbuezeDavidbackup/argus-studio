@@ -192,10 +192,10 @@ class DownloaderEngine:
         opts: Dict[str, Any] = {
             "quiet": True,
             "no_warnings": True,
-            "socket_timeout": 25,
+            "socket_timeout": 12,
             # Windows file locking defense: write directly, skip .part file
             "nopart": True,
-            "file_access_retries": 10,
+            "file_access_retries": 5,
             "windowsfilenames": True,
         }
 
@@ -220,7 +220,7 @@ class DownloaderEngine:
         elif profile == "web":
             clients = ["web", "mweb"]
         else:  # auto / adaptive
-            clients = ["ios", "android", "mweb", "web_creator"]
+            clients = ["ios", "android", "mweb"]
 
         # Client impersonation to bypass YouTube "Sign in to confirm you're not a bot"
         if use_fallback_clients:
@@ -306,6 +306,7 @@ class DownloaderEngine:
             base_opts={
                 "skip_download": True,
                 "extract_flat": "in_playlist",
+                "socket_timeout": 10,
             },
             use_fallback_clients=True
         )

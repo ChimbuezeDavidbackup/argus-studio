@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
   setupNetworkMonitoring();
   initWebSocket();
-  checkSystemStatus();
+  loadSettings();
   loadLibrary();
   loadQueue();
 });
@@ -61,13 +61,13 @@ function showTab(tabKey) {
     downloader: "Media Downloader",
     queue: "Download Queue",
     library: "Media Library",
-    settings: "Settings & System",
+    settings: "Settings",
   };
   document.getElementById("top-title").innerText = titles[tabKey] || "Argus Studio";
 
   if (tabKey === "queue") loadQueue();
   if (tabKey === "library") loadLibrary();
-  if (tabKey === "settings") checkSystemStatus();
+  if (tabKey === "settings") loadSettings();
 }
 
 // WebSocket Connection
@@ -101,91 +101,78 @@ function initWebSocket() {
   };
 }
 
-// Check System Status & FFmpeg
-async function checkSystemStatus() {
+// Load Settings
+async function loadSettings() {
   try {
-    const res = await fetch("/api/system");
+    const res = await fetch("/api/settings");
+    if (!res.ok) return;
     const data = await res.json();
-    const banner = document.getElementById("ffmpeg-banner");
-    const statusLbl = document.getElementById("ffmpeg-status-lbl");
-    const verLbl = document.getElementById("app-version-val");
-
-    if (verLbl && data.version) {
-      verLbl.innerText = `v${data.version}`;
+    if (data.max_concurrent !== undefined) {
+      const el = document.getElementById("setting-max-concurrent");
+      if (el) el.value = data.max_concurrent.toString();
     }
-
-    if (data.ffmpeg_available) {
-      if (banner) banner.style.display = "none";
-      if (statusLbl) {
-        statusLbl.innerText = `FFmpeg Active (${data.ffmpeg_location})`;
-        statusLbl.style.color = "var(--success)";
-      }
-    } else {
-      if (banner) banner.style.display = "flex";
-      if (statusLbl) {
-        statusLbl.innerText = "FFmpeg Missing";
-        statusLbl.style.color = "var(--danger)";
-      }
+    if (data.default_quality !== undefined) {
+      const el = document.getElementById("setting-default-quality");
+      if (el) el.value = data.default_quality;
+    }
+    if (data.speed_limit !== undefined) {
+      const el = document.getElementById("setting-speed-limit");
+      if (el) el.value = data.speed_limit;
+    }
+    if (data.embed_metadata !== undefined) {
+      const el = document.getElementById("setting-embed-meta");
+      if (el) el.checked = Boolean(data.embed_metadata);
     }
   } catch (e) {
-    console.error("System check error", e);
+    console.error("Error loading settings", e);
   }
 }
 
-// In-App Updates Check
-async function checkWebUpdates() {
-  const btn = document.getElementById("check-update-btn");
-  const msg = document.getElementById("update-msg");
-  if (btn) btn.innerText = "Checking...";
+// Save Settings
+async function saveSettings() {
+  const max_concurrent = parseInt(document.getElementById("setting-max-concurrent").value, 10);
+  const default_quality = document.getElementById("setting-default-quality").value;
+  const speed_limit = document.getElementById("setting-speed-limit").value;
+  const embed_metadata = document.getElementById("setting-embed-meta").checked;
+
+  const msg = document.getElementById("settings-status-msg");
+  if (msg) {
+    msg.innerText = "Saving...";
+    msg.style.color = "var(--text-secondary)";
+  }
+
   try {
-    const res = await fetch("/api/system/update/check");
-    const data = await res.json();
-    if (data.update_available) {
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        max_concurrent,
+        default_quality,
+        speed_limit,
+        embed_metadata
+      })
+    });
+    if (res.ok) {
       if (msg) {
-        msg.innerHTML = `<span style="color:var(--success); font-weight:600">Version v${data.latest_version} available</span> <a href="${data.download_url}" target="_blank" class="pill-btn" style="background:var(--accent); color:#fff; text-decoration:none; padding:4px 8px; border-radius:4px; font-size:0.75rem">Download</a>`;
-      }
-    } else if (data.error) {
-      if (msg) {
-        msg.innerText = data.error;
-        msg.style.color = "var(--warning)";
+        msg.innerText = "Preferences saved successfully.";
+        msg.style.color = "var(--success)";
+        setTimeout(() => { if (msg) msg.innerText = ""; }, 3000);
       }
     } else {
       if (msg) {
-        msg.innerText = "Application is up to date";
-        msg.style.color = "var(--success)";
+        msg.innerText = "Failed to save settings.";
+        msg.style.color = "var(--danger)";
       }
     }
   } catch (e) {
     if (msg) {
-      msg.innerText = "Error checking updates.";
+      msg.innerText = "Error: " + e.message;
       msg.style.color = "var(--danger)";
     }
-  } finally {
-    if (btn) btn.innerText = "Check for Updates";
   }
 }
 
-// Install FFmpeg Action
-async function installFFmpeg() {
-  const btn = document.getElementById("install-ff-btn");
-  if (btn) btn.innerText = "Installing Portable FFmpeg...";
-  try {
-    const res = await fetch("/api/system/ffmpeg/install", { method: "POST" });
-    const data = await res.json();
-    if (data.success) {
-      alert("FFmpeg successfully installed and active.");
-      checkSystemStatus();
-    } else {
-      alert("Failed to install FFmpeg.");
-    }
-  } catch (e) {
-    alert("Error installing FFmpeg: " + e.message);
-  } finally {
-    if (btn) btn.innerText = "Install Portable FFmpeg";
-  }
-}
-
-// Fetch Metadata (with 15s timeout supervisor)
+// Fetch Metadata (with 60s timeout supervisor for cloud hosts)
 async function fetchMetadata() {
   const url = document.getElementById("url-input").value.trim();
   if (!url) return alert("Please enter a media URL.");
@@ -205,7 +192,7 @@ async function fetchMetadata() {
   `;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
   try {
     const res = await fetch("/api/extract", {
@@ -241,7 +228,7 @@ async function fetchMetadata() {
   } catch (e) {
     clearTimeout(timeoutId);
     if (e.name === "AbortError") {
-      alert("Request timed out after 15 seconds. The host or video service took too long to respond.");
+      alert("Analysis timed out. On cloud hosts, video services can delay initial preview.\n\nYou can click 'Download & Open Queue' directly to start downloading without waiting for preview!");
     } else {
       alert("Unable to load media:\n" + e.message);
     }
@@ -296,8 +283,8 @@ async function queueMedia(jumpToQueue = false) {
     url,
     title: (state.currentMetadata && state.currentMetadata.title) ? state.currentMetadata.title : "Analyzing URL...",
     thumbnail: state.currentMetadata ? state.currentMetadata.thumbnail : null,
-    format_type: state.selectedFormatType,
-    quality: state.selectedQuality,
+    format_type: state.selectedFormatType || "video",
+    quality: state.selectedQuality || "best",
     audio_codec: "mp3",
     audio_quality: "320",
     embed_thumbnail: true,
@@ -311,8 +298,12 @@ async function queueMedia(jumpToQueue = false) {
       body: JSON.stringify(payload),
     });
     if (res.ok) {
+      document.getElementById("url-input").value = "";
       if (jumpToQueue) showTab("queue");
-      else alert("Added to queue.");
+      else alert("Added to download queue.");
+    } else {
+      const err = await res.json();
+      alert("Failed to queue download: " + (err.detail || "Server error"));
     }
   } catch (e) {
     alert("Error adding to queue: " + e.message);
