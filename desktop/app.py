@@ -1,13 +1,12 @@
 """
 Argus Studio - Native Windows Desktop Application (CustomTkinter).
 Modern, clean, balanced interface inspired by the Argus Studio web application.
-Supports Dark, Light, and System themes, dynamic stream merging, and collapsible power tools.
+Supports Dark, Light, and System themes, real-time live telemetry, and collapsible power tools.
 """
 
 import io
 import logging
 import os
-import re
 import subprocess
 import sys
 import threading
@@ -130,6 +129,10 @@ PALETTE = {
     "pill_text_active": ("#ffffff", "#ffffff"),
 }
 
+# Theme icon bidirectional maps (Pure icon appearance switcher)
+THEME_ICONS = {"System": "🖥", "Dark": "🌙", "Light": "☀️"}
+ICON_TO_THEME = {"🖥": "System", "🌙": "Dark", "☀️": "Light"}
+
 
 class ArgusStudioApp(ctk.CTk):
     def __init__(self):
@@ -169,7 +172,6 @@ class ArgusStudioApp(ctk.CTk):
         self.selected_quality = "best"
         self.selected_format_type = "video"
         self.custom_cookie_path: Optional[str] = None
-        self.last_clipboard_text = ""
         self.adv_expanded = False
 
         # UI Maps
@@ -177,10 +179,6 @@ class ArgusStudioApp(ctk.CTk):
 
         self._build_layout()
         self._show_tab("downloader")
-
-        # Thread-safe Mainloop Clipboard Polling
-        if self.config_data.get("clipboard_monitor", True):
-            self.after(1500, self._check_clipboard_poll)
 
         # Silent background update check
         if self.config_data.get("auto_check_updates", True):
@@ -192,7 +190,7 @@ class ArgusStudioApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # 1. Left Sidebar (Web-inspired modern navigation)
+        # 1. Left Sidebar (With icons & minimalist branding)
         self.sidebar = ctk.CTkFrame(
             self,
             width=230,
@@ -201,17 +199,9 @@ class ArgusStudioApp(ctk.CTk):
         )
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
-        # Brand Header
+        # Clean Brand Header (Icon removed as requested)
         self.brand_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        self.brand_frame.pack(fill="x", padx=18, pady=(22, 20))
-
-        self.brand_icon = ctk.CTkLabel(
-            self.brand_frame,
-            text="▶",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#2563eb"
-        )
-        self.brand_icon.pack(side="left", padx=(0, 10))
+        self.brand_frame.pack(fill="x", padx=20, pady=(24, 22))
 
         self.brand_title = ctk.CTkLabel(
             self.brand_frame,
@@ -219,15 +209,15 @@ class ArgusStudioApp(ctk.CTk):
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=PALETTE["text_primary"]
         )
-        self.brand_title.pack(side="left")
+        self.brand_title.pack(anchor="w")
 
-        # Nav Buttons
+        # Nav Buttons with Typographic Icons
         self.nav_btns = {}
         nav_items = [
-            ("downloader", "Downloader"),
-            ("queue", "Queue (0)"),
-            ("library", "Library"),
-            ("settings", "Settings")
+            ("downloader", "📥  Downloader"),
+            ("queue", "📋  Queue (0)"),
+            ("library", "📁  Library"),
+            ("settings", "⚙  Settings")
         ]
 
         for key, label in nav_items:
@@ -246,7 +236,7 @@ class ArgusStudioApp(ctk.CTk):
             btn.pack(fill="x", padx=12, pady=3)
             self.nav_btns[key] = btn
 
-        # Sidebar Footer: Engine status & Quick Theme Switcher
+        # Sidebar Footer: Icon-Only Theme Switcher (Active engine text removed)
         self.sidebar_footer = ctk.CTkFrame(
             self.sidebar,
             fg_color=PALETTE["bg_sidebar_footer"],
@@ -254,34 +244,18 @@ class ArgusStudioApp(ctk.CTk):
         )
         self.sidebar_footer.pack(side="bottom", fill="x", padx=12, pady=16)
 
-        self.engine_dot = ctk.CTkLabel(
-            self.sidebar_footer,
-            text=f"● Engine Active ({self.config_data.get('max_concurrent', 2)} slots)",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#10b981"
-        )
-        self.engine_dot.pack(padx=10, pady=(10, 6))
-
-        # Sidebar Theme Switcher
-        theme_lbl = ctk.CTkLabel(
-            self.sidebar_footer,
-            text="Appearance Mode:",
-            font=ctk.CTkFont(size=11),
-            text_color=PALETTE["text_muted"]
-        )
-        theme_lbl.pack(anchor="w", padx=12, pady=(2, 2))
-
+        # Icon-Only Theme Switcher (🖥 System, 🌙 Dark, ☀️ Light)
         self.sidebar_theme_seg = ctk.CTkSegmentedButton(
             self.sidebar_footer,
-            values=["System", "Dark", "Light"],
-            height=28,
+            values=["🖥", "🌙", "☀️"],
+            height=32,
             corner_radius=6,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            command=self._set_theme
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=self._on_theme_icon_selected
         )
-        cur_theme = self.config_data.get("theme", "System")
-        self.sidebar_theme_seg.set(cur_theme.capitalize())
-        self.sidebar_theme_seg.pack(fill="x", padx=10, pady=(0, 10))
+        cur_theme = self.config_data.get("theme", "System").capitalize()
+        self.sidebar_theme_seg.set(THEME_ICONS.get(cur_theme, "🖥"))
+        self.sidebar_theme_seg.pack(fill="x", padx=8, pady=8)
 
         # 2. Main Workspace
         self.main_container = ctk.CTkFrame(
@@ -293,7 +267,7 @@ class ArgusStudioApp(ctk.CTk):
         self.main_container.grid_rowconfigure(3, weight=1)
         self.main_container.grid_columnconfigure(0, weight=1)
 
-        # Top Header Bar
+        # Top Header Bar with Live Telemetry Status
         self.header_frame = ctk.CTkFrame(
             self.main_container,
             height=54,
@@ -310,13 +284,14 @@ class ArgusStudioApp(ctk.CTk):
         )
         self.header_title.pack(side="left", padx=24, pady=14)
 
-        self.header_subtitle = ctk.CTkLabel(
+        # Live Real-time Telemetry Status Pill (Visible across all tabs without navigating)
+        self.header_telemetry = ctk.CTkLabel(
             self.header_frame,
-            text="Universal Media Suite",
-            font=ctk.CTkFont(size=12),
-            text_color=PALETTE["text_muted"]
+            text="",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#38bdf8"
         )
-        self.header_subtitle.pack(side="right", padx=24, pady=14)
+        self.header_telemetry.pack(side="right", padx=24, pady=14)
 
         # FFmpeg Alert Banner
         self.ffmpeg_banner = ctk.CTkFrame(self.main_container, fg_color="#7c2d12", corner_radius=8)
@@ -366,28 +341,6 @@ class ArgusStudioApp(ctk.CTk):
         self.update_banner_btn.pack(side="right", padx=10, pady=6)
         self.cached_update_info: Optional[Dict[str, Any]] = None
 
-        # Clipboard Auto-Detect Toast Banner
-        self.clip_banner = ctk.CTkFrame(self.main_container, fg_color="#1e3a8a", corner_radius=8)
-        self.clip_banner_label = ctk.CTkLabel(
-            self.clip_banner,
-            text="Media link detected in clipboard. Click to load",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#93c5fd"
-        )
-        self.clip_banner_label.pack(side="left", padx=14, pady=6)
-
-        self.clip_load_btn = ctk.CTkButton(
-            self.clip_banner,
-            text="Load Link",
-            width=80,
-            height=26,
-            corner_radius=6,
-            fg_color="#2563eb",
-            hover_color="#1d4ed8",
-            command=self._load_detected_clipboard
-        )
-        self.clip_load_btn.pack(side="right", padx=10, pady=6)
-
         # View Panels
         self.view_downloader = ctk.CTkScrollableFrame(self.main_container, fg_color="transparent")
         self.view_queue = ctk.CTkFrame(self.main_container, fg_color="transparent")
@@ -421,23 +374,25 @@ class ArgusStudioApp(ctk.CTk):
 
         if tab_key == "downloader":
             self.header_title.configure(text="Media Downloader")
-            self.header_subtitle.configure(text="Universal Media Suite")
             self.view_downloader.grid(row=3, column=0, sticky="nsew", padx=20, pady=12)
         elif tab_key == "queue":
             self.header_title.configure(text="Download Queue")
-            self.header_subtitle.configure(text="Active & Completed Ingestion")
             self.view_queue.grid(row=3, column=0, sticky="nsew", padx=20, pady=12)
             self._render_queue_list()
         elif tab_key == "library":
             self.header_title.configure(text="Media Library")
-            self.header_subtitle.configure(text="Local Download History")
             self.view_library.grid(row=3, column=0, sticky="nsew", padx=20, pady=12)
             self._refresh_library_ui()
         elif tab_key == "settings":
             self.header_title.configure(text="Settings")
-            self.header_subtitle.configure(text="Preferences & Performance")
             self.view_settings.grid(row=3, column=0, sticky="nsew", padx=20, pady=12)
             self._refresh_ffmpeg_status_ui()
+
+        self._update_live_telemetry()
+
+    def _on_theme_icon_selected(self, icon_choice: str):
+        mode = ICON_TO_THEME.get(icon_choice, "System")
+        self._set_theme(mode)
 
     def _set_theme(self, mode: str):
         mode_capitalized = mode.capitalize()
@@ -445,15 +400,16 @@ class ArgusStudioApp(ctk.CTk):
         self.config_data["theme"] = mode_capitalized
         save_config(self.config_data)
 
+        target_icon = THEME_ICONS.get(mode_capitalized, "🖥")
         if hasattr(self, "sidebar_theme_seg"):
-            self.sidebar_theme_seg.set(mode_capitalized)
+            self.sidebar_theme_seg.set(target_icon)
         if hasattr(self, "setting_theme_seg"):
-            self.setting_theme_seg.set(mode_capitalized)
+            self.setting_theme_seg.set(target_icon)
 
-    # ================= 1. DOWNLOADER VIEW (CLEAN & BALANCED) ================= #
+    # ================= 1. DOWNLOADER VIEW ================= #
 
     def _build_downloader_view(self):
-        # 1. Primary Ingestion Input Card (Clean, web-aligned)
+        # 1. Primary Ingestion Card (Dedicated paste button, no redundant popup toast)
         input_card = ctk.CTkFrame(
             self.view_downloader,
             fg_color=PALETTE["bg_card"],
@@ -468,7 +424,7 @@ class ArgusStudioApp(ctk.CTk):
 
         self.url_entry = ctk.CTkEntry(
             url_row,
-            placeholder_text="Enter YouTube, Vimeo, Playlist, or media URL...",
+            placeholder_text="Enter YouTube, Dailymotion, Vimeo, or media URL...",
             height=42,
             corner_radius=8,
             font=ctk.CTkFont(size=13),
@@ -529,7 +485,7 @@ class ArgusStudioApp(ctk.CTk):
         )
         self.fetch_btn.pack(side="right")
 
-        # 2. Media Preview Card (Clean, centered, web-app layout)
+        # 2. Media Preview Card
         self.preview_card = ctk.CTkFrame(
             self.view_downloader,
             fg_color=PALETTE["bg_card"],
@@ -721,7 +677,7 @@ class ArgusStudioApp(ctk.CTk):
         self.clip_end_entry = ctk.CTkEntry(row_c, width=70, height=26, placeholder_text="00:03:45")
         self.clip_end_entry.pack(side="left")
 
-        # Row D: Session Auth & Speed Limit (Advanced access)
+        # Row D: Session Auth & Speed Limit
         row_d = ctk.CTkFrame(self.adv_inner, fg_color="transparent")
         row_d.pack(fill="x", pady=6)
 
@@ -757,7 +713,7 @@ class ArgusStudioApp(ctk.CTk):
         self.speed_combo.set(self.config_data.get("speed_limit", "Unlimited"))
         self.speed_combo.pack(side="left")
 
-        # 4. Action Bar (Matches web application: Add to Queue & Download Now)
+        # 4. Action Bar
         action_card = ctk.CTkFrame(
             self.view_downloader,
             fg_color=PALETTE["bg_card"],
@@ -1069,7 +1025,7 @@ class ArgusStudioApp(ctk.CTk):
         self.queue_mgr.add_task(task)
 
         self.status_line.configure(text=f"Added to queue: {title}")
-        self._update_queue_badge()
+        self._update_live_telemetry()
 
         if jump_to_queue:
             self._show_tab("queue")
@@ -1094,7 +1050,6 @@ class ArgusStudioApp(ctk.CTk):
         title_lbl = ctk.CTkLabel(head, text="Fetching playlist entries...", font=ctk.CTkFont(size=14, weight="bold"))
         title_lbl.pack(side="left")
 
-        # Scrollable checklist
         scroll = ctk.CTkScrollableFrame(
             modal,
             fg_color=PALETTE["bg_card_subtle"],
@@ -1104,7 +1059,6 @@ class ArgusStudioApp(ctk.CTk):
         )
         scroll.pack(fill="both", expand=True, padx=20, pady=5)
 
-        # Controls bottom
         ctrl = ctk.CTkFrame(modal, fg_color="transparent")
         ctrl.pack(fill="x", padx=20, pady=15)
 
@@ -1164,7 +1118,7 @@ class ArgusStudioApp(ctk.CTk):
                     self.queue_mgr.add_task(task)
 
             modal.destroy()
-            self._update_queue_badge()
+            self._update_live_telemetry()
             self._show_tab("queue")
 
         def _worker_fetch():
@@ -1226,7 +1180,7 @@ class ArgusStudioApp(ctk.CTk):
                 cookie_file=cookie_file
             )
             modal.destroy()
-            self._update_queue_badge()
+            self._update_live_telemetry()
             self._show_tab("queue")
 
         ctk.CTkButton(
@@ -1239,7 +1193,7 @@ class ArgusStudioApp(ctk.CTk):
             command=_do_batch_add
         ).pack(fill="x", padx=20, pady=(0, 20))
 
-    # ================= 4. QUEUE VIEW ================= #
+    # ================= 4. QUEUE VIEW & LIVE TELEMETRY ================= #
 
     def _build_queue_view(self):
         self.view_queue.grid_columnconfigure(0, weight=1)
@@ -1279,14 +1233,10 @@ class ArgusStudioApp(ctk.CTk):
     def _clear_finished_queue(self):
         self.queue_mgr.clear_completed()
         self._render_queue_list()
-        self._update_queue_badge()
+        self._update_live_telemetry()
 
     def _render_queue_list(self):
         tasks = self.queue_mgr.get_all_tasks()
-        active = sum(1 for t in tasks if t.status in ("queued", "downloading"))
-        finished = sum(1 for t in tasks if t.status in ("completed", "failed", "canceled"))
-
-        self.queue_stats_label.configure(text=f"Active: {active}  •  Finished: {finished}  •  Total: {len(tasks)}")
 
         for child in self.queue_scroll.winfo_children():
             child.destroy()
@@ -1305,6 +1255,8 @@ class ArgusStudioApp(ctk.CTk):
 
         for task in tasks:
             self._create_task_card(task)
+
+        self._update_live_telemetry()
 
     def _create_task_card(self, task: DownloadTask):
         card = ctk.CTkFrame(
@@ -1346,9 +1298,29 @@ class ArgusStudioApp(ctk.CTk):
         info_lbl = ctk.CTkLabel(bot, text=f"{task.speed}  •  {task.size_info}  •  {task.eta}", font=ctk.CTkFont(size=11), text_color=PALETTE["text_muted"])
         info_lbl.pack(side="left")
 
+        action_container = ctk.CTkFrame(bot, fg_color="transparent")
+        action_container.pack(side="right")
+
+        btn = self._build_task_action_button(action_container, task)
+
+        self.queue_widgets[task.id] = {
+            "card": card,
+            "title": title_lbl,
+            "status": status_lbl,
+            "pbar": pbar,
+            "info": info_lbl,
+            "action_container": action_container,
+            "action_btn": btn,
+            "last_status": task.status
+        }
+
+    def _build_task_action_button(self, parent: ctk.CTkFrame, task: DownloadTask):
+        for child in parent.winfo_children():
+            child.destroy()
+
         if task.status in ("queued", "downloading"):
-            cancel_btn = ctk.CTkButton(
-                bot,
+            btn = ctk.CTkButton(
+                parent,
                 text="Cancel",
                 width=65,
                 height=24,
@@ -1358,10 +1330,11 @@ class ArgusStudioApp(ctk.CTk):
                 text_color=PALETTE["btn_secondary_text"],
                 command=lambda tid=task.id: self._cancel_task(tid)
             )
-            cancel_btn.pack(side="right")
+            btn.pack(side="right")
+            return btn
         elif task.status == "completed":
-            open_btn = ctk.CTkButton(
-                bot,
+            btn = ctk.CTkButton(
+                parent,
                 text="Play",
                 width=60,
                 height=24,
@@ -1370,10 +1343,11 @@ class ArgusStudioApp(ctk.CTk):
                 hover_color=PALETTE["btn_success_hover"],
                 command=lambda p=task.saved_path: self._play_media(p)
             )
-            open_btn.pack(side="right", padx=(4, 0))
+            btn.pack(side="right")
+            return btn
         elif task.status in ("failed", "canceled"):
-            retry_btn = ctk.CTkButton(
-                bot,
+            btn = ctk.CTkButton(
+                parent,
                 text="Retry",
                 width=60,
                 height=24,
@@ -1382,15 +1356,9 @@ class ArgusStudioApp(ctk.CTk):
                 hover_color=PALETTE["btn_primary_hover"],
                 command=lambda tid=task.id: self._retry_task(tid)
             )
-            retry_btn.pack(side="right")
-
-        self.queue_widgets[task.id] = {
-            "title": title_lbl,
-            "status": status_lbl,
-            "pbar": pbar,
-            "info": info_lbl,
-            "last_status": task.status
-        }
+            btn.pack(side="right")
+            return btn
+        return None
 
     def _get_status_color(self, status: str) -> str:
         if status == "downloading":
@@ -1405,17 +1373,16 @@ class ArgusStudioApp(ctk.CTk):
 
     def _cancel_task(self, task_id: str):
         self.queue_mgr.cancel_task(task_id)
-        self._refresh_queue_view()
+        self._update_live_telemetry()
 
     def _retry_task(self, task_id: str):
         self.queue_mgr.retry_task(task_id)
-        self._refresh_queue_view()
+        self._update_live_telemetry()
 
     def _on_queue_task_updated(self, task: DownloadTask):
         self.after(0, self._apply_task_update_to_ui, task)
 
     def _apply_task_update_to_ui(self, task: DownloadTask):
-        self._update_queue_badge()
         w = self.queue_widgets.get(task.id)
         if w:
             prev_status = w.get("last_status")
@@ -1424,9 +1391,16 @@ class ArgusStudioApp(ctk.CTk):
             safe_prog = max(0.0, min(1.0, float(task.progress or 0.0)))
             w["pbar"].set(safe_prog)
             w["info"].configure(text=f"{task.speed}  •  {task.size_info}  •  {task.eta}")
-            w["last_status"] = task.status
-            if prev_status != task.status and task.status in ("completed", "failed", "canceled"):
-                self._render_queue_list()
+
+            if prev_status != task.status:
+                w["last_status"] = task.status
+                self._build_task_action_button(w["action_container"], task)
+        else:
+            # If the user is viewing the queue and this card does not exist yet, build it live
+            if self.view_queue.winfo_ismapped():
+                self._create_task_card(task)
+
+        self._update_live_telemetry()
 
     def _on_queue_task_completed(self, task: DownloadTask):
         self.after(0, self._record_completed_task_to_library, task)
@@ -1448,49 +1422,51 @@ class ArgusStudioApp(ctk.CTk):
         self.library_items.insert(0, entry)
         save_library(self.library_items)
 
-    def _update_queue_badge(self):
+        self._update_live_telemetry()
+        if self.view_library.winfo_ismapped():
+            self._refresh_library_ui()
+
+    def _update_live_telemetry(self):
+        """Unified live telemetry supervisor: keeps header, sidebar, and tab data fresh in real time."""
         tasks = self.queue_mgr.get_all_tasks()
         active = sum(1 for t in tasks if t.status in ("queued", "downloading"))
+        finished = sum(1 for t in tasks if t.status in ("completed", "failed", "canceled"))
+        completed = sum(1 for t in tasks if t.status == "completed")
+        total = len(tasks)
+
+        # 1. Update Sidebar Queue Badge
         q_btn = self.nav_btns.get("queue")
         if q_btn:
-            q_btn.configure(text=f"Queue ({active})")
+            q_btn.configure(text=f"📋  Queue ({active})")
 
-    # ================= 5. SMART CLIPBOARD WATCHER ================= #
+        # 2. Update Queue Top Stats Label
+        if hasattr(self, "queue_stats_label"):
+            self.queue_stats_label.configure(text=f"Active: {active}  •  Finished: {finished}  •  Total: {total}")
 
-    def _check_clipboard_poll(self):
-        if not self.config_data.get("clipboard_monitor", True):
-            return
+        # 3. Persistent Top Header Telemetry Pill (Visible across tabs)
+        if hasattr(self, "header_telemetry"):
+            if active > 0:
+                speeds = [t.speed for t in tasks if t.status == "downloading" and t.speed and t.speed not in ("0 KiB/s", "N/A")]
+                speed_text = speeds[0] if speeds else "Processing"
+                self.header_telemetry.configure(
+                    text=f"● Ingesting ({active}/{total}) • {speed_text}",
+                    text_color="#38bdf8"
+                )
+            elif total > 0 and finished == total:
+                self.header_telemetry.configure(
+                    text=f"✔ Ingestion Complete ({completed}/{total})",
+                    text_color="#10b981"
+                )
+            else:
+                self.header_telemetry.configure(text="", text_color=PALETTE["text_muted"])
 
-        video_regex = re.compile(
-            r'(https?://(?:www\.|m\.)?(?:youtube\.com|youtu\.be|vimeo\.com|twitter\.com|x\.com|tiktok\.com|instagram\.com)/\S+)',
-            re.IGNORECASE
-        )
-        try:
-            clip = self.clipboard_get()
-            if clip:
-                clip = clip.strip()
-                if clip and clip != self.last_clipboard_text:
-                    self.last_clipboard_text = clip
-                    if video_regex.search(clip):
-                        self._show_clipboard_banner(clip)
-        except Exception:
-            pass
-        finally:
-            self.after(1500, self._check_clipboard_poll)
+        # 4. Downloader Status Line
+        if hasattr(self, "status_line") and active > 0:
+            self.status_line.configure(
+                text=f"Live Ingestion Active: {active} remaining, {completed} completed of {total} total."
+            )
 
-    def _show_clipboard_banner(self, url: str):
-        self.clip_banner.grid(row=2, column=0, sticky="ew", padx=20, pady=(6, 0))
-        self.detected_url = url
-
-    def _load_detected_clipboard(self):
-        if hasattr(self, 'detected_url') and self.detected_url:
-            self.url_entry.delete(0, "end")
-            self.url_entry.insert(0, self.detected_url)
-            self._show_tab("downloader")
-            self._start_fetch_metadata()
-        self.clip_banner.grid_forget()
-
-    # ================= 6. LIBRARY VIEW ================= #
+    # ================= 5. LIBRARY VIEW ================= #
 
     def _build_library_view(self):
         self.view_library.grid_columnconfigure(0, weight=1)
@@ -1672,7 +1648,7 @@ class ArgusStudioApp(ctk.CTk):
             os.makedirs(d, exist_ok=True)
             os.startfile(d)
 
-    # ================= 7. SETTINGS & PREFERENCES VIEW ================= #
+    # ================= 6. SETTINGS VIEW ================= #
 
     def _build_settings_view(self):
         # 1. Appearance & Theme Card
@@ -1694,7 +1670,7 @@ class ArgusStudioApp(ctk.CTk):
 
         ctk.CTkLabel(
             theme_card,
-            text="Select color theme for Argus Studio desktop interface.",
+            text="Select color theme: 🖥 Auto System  •  🌙 Dark  •  ☀️ Light",
             font=ctk.CTkFont(size=11),
             text_color=PALETTE["text_muted"]
         ).pack(anchor="w", padx=18, pady=(0, 10))
@@ -1704,14 +1680,14 @@ class ArgusStudioApp(ctk.CTk):
 
         self.setting_theme_seg = ctk.CTkSegmentedButton(
             theme_row,
-            values=["System", "Dark", "Light"],
+            values=["🖥", "🌙", "☀️"],
             height=34,
             corner_radius=8,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            command=self._set_theme
+            font=ctk.CTkFont(size=14, weight="bold"),
+            command=self._on_theme_icon_selected
         )
         cur_t = self.config_data.get("theme", "System").capitalize()
-        self.setting_theme_seg.set(cur_t)
+        self.setting_theme_seg.set(THEME_ICONS.get(cur_t, "🖥"))
         self.setting_theme_seg.pack(side="left")
 
         # 2. Download Location
@@ -1767,7 +1743,7 @@ class ArgusStudioApp(ctk.CTk):
 
         ctk.CTkLabel(
             feat_card,
-            text="Ingestion Performance & Automation",
+            text="Ingestion Performance & Slots",
             font=ctk.CTkFont(size=14, weight="bold"),
             text_color=PALETTE["text_primary"]
         ).pack(anchor="w", padx=18, pady=(16, 8))
@@ -1781,24 +1757,11 @@ class ArgusStudioApp(ctk.CTk):
         self.conc_combo.pack(side="left")
 
         row_sp = ctk.CTkFrame(feat_card, fg_color="transparent")
-        row_sp.pack(fill="x", padx=18, pady=6)
+        row_sp.pack(fill="x", padx=18, pady=(6, 16))
         ctk.CTkLabel(row_sp, text="Global Speed Limit:", font=ctk.CTkFont(size=12, weight="bold"), text_color=PALETTE["text_primary"]).pack(side="left", padx=(0, 12))
         self.cfg_speed_combo = ctk.CTkComboBox(row_sp, values=["Unlimited", "1 MB/s", "2 MB/s", "5 MB/s", "10 MB/s"], width=130, command=self._change_speed_limit)
         self.cfg_speed_combo.set(self.config_data.get("speed_limit", "Unlimited"))
         self.cfg_speed_combo.pack(side="left")
-
-        row2 = ctk.CTkFrame(feat_card, fg_color="transparent")
-        row2.pack(fill="x", padx=18, pady=(6, 16))
-        self.clip_mon_switch = ctk.CTkCheckBox(
-            row2,
-            text="Smart Clipboard Auto-Detector (Pops up when a media link is copied)",
-            font=ctk.CTkFont(size=12),
-            text_color=PALETTE["text_primary"],
-            command=self._toggle_clipboard_mon
-        )
-        if self.config_data.get("clipboard_monitor", True):
-            self.clip_mon_switch.select()
-        self.clip_mon_switch.pack(side="left")
 
         # 4. FFmpeg Engine Integration Card
         self.ffmpeg_card = ctk.CTkFrame(
@@ -2074,18 +2037,12 @@ class ArgusStudioApp(ctk.CTk):
         self.config_data["max_concurrent"] = num
         self.queue_mgr.max_concurrent = num
         save_config(self.config_data)
-        self.engine_dot.configure(text=f"● Engine Active ({num} slots)")
 
     def _change_speed_limit(self, val: str):
         self.config_data["speed_limit"] = val
         save_config(self.config_data)
         if hasattr(self, "speed_combo"):
             self.speed_combo.set(val)
-
-    def _toggle_clipboard_mon(self):
-        enabled = bool(self.clip_mon_switch.get())
-        self.config_data["clipboard_monitor"] = enabled
-        save_config(self.config_data)
 
 
 def main():
