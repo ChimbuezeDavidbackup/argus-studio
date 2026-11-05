@@ -208,19 +208,19 @@ class DownloaderEngine:
         if shutil.which("node"):
             opts["js_runtimes"] = {"node": {}}
 
-        # Resolve client profile (default to 'ios' first for cloud / datacenter resilience)
+        # Resolve client profile (default to 'android' first for cloud / datacenter resilience)
         cfg = load_config()
         profile = (cfg.get("player_client_profile") or "auto").lower()
-        if profile == "ios":
-            clients = ["ios"]
-        elif profile == "android":
+        if profile == "android":
             clients = ["android"]
+        elif profile == "ios":
+            clients = ["ios"]
         elif profile == "tv":
             clients = ["tv", "tv_embedded"]
         elif profile == "web":
             clients = ["web", "mweb"]
         else:  # auto / adaptive
-            clients = ["ios", "android", "mweb"]
+            clients = ["android", "web", "ios"]
 
         # Client impersonation to bypass YouTube "Sign in to confirm you're not a bot"
         if use_fallback_clients:
@@ -315,27 +315,25 @@ class DownloaderEngine:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 raw_info = ydl.extract_info(url, download=False)
                 return ydl.sanitize_info(raw_info)
-        except Exception as e:
-            # If failed, attempt alternative client profile without cookies
-            if self._is_bot_check_error(e) or self._is_cookie_lock_error(e):
-                try:
-                    alt_opts = self._build_ydl_opts(
-                        browser_cookies=None,
-                        cookie_file=None,
-                        base_opts={
-                            "skip_download": True,
-                            "extract_flat": "in_playlist",
-                        },
-                        use_fallback_clients=True
-                    )
-                    with yt_dlp.YoutubeDL(alt_opts) as ydl:
-                        raw_info = ydl.extract_info(url, download=False)
-                        return ydl.sanitize_info(raw_info)
-                except Exception:
-                    pass
-
-            friendly_err = self._handle_exception(e)
-            raise RuntimeError(friendly_err) from e
+        except Exception:
+            # Automatic fallback: try standard extractor without custom player_client
+            try:
+                fallback_opts = self._build_ydl_opts(
+                    browser_cookies=None,
+                    cookie_file=None,
+                    base_opts={
+                        "skip_download": True,
+                        "extract_flat": "in_playlist",
+                        "socket_timeout": 12,
+                    },
+                    use_fallback_clients=False
+                )
+                with yt_dlp.YoutubeDL(fallback_opts) as ydl:
+                    raw_info = ydl.extract_info(url, download=False)
+                    return ydl.sanitize_info(raw_info)
+            except Exception as e2:
+                friendly_err = self._handle_exception(e2)
+                raise RuntimeError(friendly_err) from e2
 
     def extract_playlist_entries(
         self,
