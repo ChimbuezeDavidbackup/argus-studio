@@ -19,6 +19,7 @@ from core.config import (
     load_library,
     save_library,
     get_data_dir,
+    COOKIES_FILE,
     APP_VERSION,
 )
 from core.engine import (
@@ -139,6 +140,15 @@ class BatchQueueRequest(BaseModel):
     audio_quality: str = "320"
 
 
+class CookiePayload(BaseModel):
+    content: str
+
+
+class ProfilePayload(BaseModel):
+    player_client_profile: str = "auto"
+    proxy_url: Optional[str] = ""
+
+
 # ================= REST API ROUTES ================= #
 
 @app.get("/api/system")
@@ -189,6 +199,75 @@ def trigger_ffmpeg_install():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/settings/auth")
+def get_auth_settings():
+    cfg = load_config()
+    has_cookies = os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0
+    cookie_lines = 0
+    if has_cookies:
+        try:
+            with open(COOKIES_FILE, "r", encoding="utf-8", errors="ignore") as f:
+                cookie_lines = sum(1 for line in f if line.strip() and not line.startswith("#"))
+        except Exception:
+            pass
+
+    return {
+        "has_cookies": has_cookies,
+        "cookie_lines": cookie_lines,
+        "player_client_profile": cfg.get("player_client_profile", "auto"),
+        "proxy_url": cfg.get("proxy_url", ""),
+    }
+
+
+@app.post("/api/settings/cookies")
+def save_cookies(payload: CookiePayload):
+    try:
+        content = payload.content.strip()
+        if not content:
+            raise HTTPException(status_code=400, detail="Cookie content is empty.")
+        with open(COOKIES_FILE, "w", encoding="utf-8") as f:
+            f.write(content + "\n")
+        return {"status": "saved", "size_bytes": len(content)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/settings/cookies")
+def delete_cookies():
+    if os.path.exists(COOKIES_FILE):
+        try:
+            os.remove(COOKIES_FILE)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    return {"status": "cleared"}
+
+
+@app.post("/api/settings/profile")
+def update_profile_settings(payload: ProfilePayload):
+    cfg = load_config()
+    cfg["player_client_profile"] = payload.player_client_profile
+    cfg["proxy_url"] = payload.proxy_url or ""
+    save_config(cfg)
+    return {"status": "updated", "config": cfg}
+
+
+@app.post("/api/settings/verify")
+def verify_connection():
+    test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    try:
+        data = engine.extract_metadata(test_url)
+        return {
+            "verified": True,
+            "message": "Connection verified! YouTube requests are authenticated and working.",
+            "title": data.get("title", "Test Video"),
+        }
+    except Exception as e:
+        return {
+            "verified": False,
+            "message": f"Verification failed: {str(e)}",
+        }
 
 
 @app.post("/api/extract")

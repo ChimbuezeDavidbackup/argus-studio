@@ -17,7 +17,7 @@ import certifi
 import yt_dlp
 from yt_dlp.utils import download_range_func
 
-from .config import get_bin_dir
+from .config import get_bin_dir, COOKIES_FILE, load_config
 
 BIN_DIR = get_bin_dir()
 
@@ -208,20 +208,41 @@ class DownloaderEngine:
         if shutil.which("node"):
             opts["js_runtimes"] = {"node": {}}
 
+        # Resolve client profile (default to 'ios' first for cloud / datacenter resilience)
+        cfg = load_config()
+        profile = (cfg.get("player_client_profile") or "auto").lower()
+        if profile == "ios":
+            clients = ["ios"]
+        elif profile == "android":
+            clients = ["android"]
+        elif profile == "tv":
+            clients = ["tv", "tv_embedded"]
+        elif profile == "web":
+            clients = ["web", "mweb"]
+        else:  # auto / adaptive
+            clients = ["ios", "android", "mweb", "web_creator"]
+
         # Client impersonation to bypass YouTube "Sign in to confirm you're not a bot"
         if use_fallback_clients:
             opts["extractor_args"] = {
                 "youtube": {
-                    "player_client": ["android", "ios", "web_creator", "mweb"]
+                    "player_client": clients
                 }
             }
+
+        # Custom Proxy support
+        proxy = cfg.get("proxy_url")
+        if proxy and str(proxy).strip():
+            opts["proxy"] = str(proxy).strip()
 
         if base_opts:
             opts.update(base_opts)
 
-        # Cookie configuration
+        # Cookie configuration (supports uploaded Netscape cookies.txt on cloud hosts)
         if cookie_file and os.path.exists(cookie_file):
             opts["cookiefile"] = cookie_file
+        elif os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 0:
+            opts["cookiefile"] = COOKIES_FILE
         elif browser_cookies and browser_cookies.lower() not in ("none", ""):
             opts["cookiesfrombrowser"] = (browser_cookies.lower(),)
 

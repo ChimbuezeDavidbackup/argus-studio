@@ -38,6 +38,7 @@ DATA_DIR = get_data_dir()
 BIN_DIR = get_bin_dir()
 CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
 LIBRARY_FILE = os.path.join(DATA_DIR, "library.json")
+COOKIES_FILE = os.path.join(DATA_DIR, "cookies.txt")
 LOG_FILE = os.path.join(DATA_DIR, "argus_runtime.log")
 
 # Legacy migration
@@ -78,6 +79,8 @@ def load_config() -> Dict[str, Any]:
         "embed_subtitles": True,
         "auto_check_updates": True,
         "update_server": "",
+        "player_client_profile": "auto",
+        "proxy_url": "",
         "web_port": 8000,
         "web_host": "0.0.0.0",
     }

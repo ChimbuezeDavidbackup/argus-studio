@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupNavigation();
   initWebSocket();
   checkSystemStatus();
+  loadAuthSettings();
   loadLibrary();
   loadQueue();
 });
@@ -47,7 +48,10 @@ function showTab(tabKey) {
 
   if (tabKey === "queue") loadQueue();
   if (tabKey === "library") loadLibrary();
-  if (tabKey === "settings") checkSystemStatus();
+  if (tabKey === "settings") {
+    checkSystemStatus();
+    loadAuthSettings();
+  }
 }
 
 // WebSocket Connection
@@ -145,6 +149,162 @@ async function checkWebUpdates() {
   }
 }
 
+// Session Authentication & Verification Bypass Management
+async function loadAuthSettings() {
+  try {
+    const res = await fetch("/api/settings/auth");
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const badge = document.getElementById("auth-status-badge");
+    if (badge) {
+      if (data.has_cookies) {
+        badge.innerText = `● Session Cookies Active (${data.cookie_lines} entries)`;
+        badge.style.background = "#065f46";
+        badge.style.color = "#a7f3d0";
+      } else {
+        badge.innerText = "Cloud Restricted (No Cookies)";
+        badge.style.background = "#78350f";
+        badge.style.color = "#fde68a";
+      }
+    }
+
+    const profSelect = document.getElementById("client-profile-select");
+    if (profSelect && data.player_client_profile) {
+      profSelect.value = data.player_client_profile;
+    }
+
+    const proxyInput = document.getElementById("proxy-url-input");
+    if (proxyInput && data.proxy_url) {
+      proxyInput.value = data.proxy_url;
+    }
+  } catch (e) {
+    console.error("Auth load error", e);
+  }
+}
+
+async function saveCookiesText() {
+  const txt = document.getElementById("cookies-input").value.trim();
+  if (!txt) return alert("Please paste Netscape cookies content before saving.");
+  try {
+    const res = await fetch("/api/settings/cookies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: txt }),
+    });
+    if (res.ok) {
+      alert("Session cookies saved successfully! Cloud verification is now bypassed.");
+      document.getElementById("cookies-input").value = "";
+      loadAuthSettings();
+    } else {
+      const err = await res.json();
+      alert("Failed to save cookies: " + (err.detail || "Unknown error"));
+    }
+  } catch (e) {
+    alert("Error saving cookies: " + e.message);
+  }
+}
+
+function handleCookieFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const content = e.target.result;
+    document.getElementById("cookies-input").value = content;
+    await saveCookiesText();
+  };
+  reader.readAsText(file);
+}
+
+async function clearCookies() {
+  if (!confirm("Clear saved session cookies?")) return;
+  try {
+    const res = await fetch("/api/settings/cookies", { method: "DELETE" });
+    if (res.ok) {
+      alert("Session cookies cleared.");
+      document.getElementById("cookies-input").value = "";
+      loadAuthSettings();
+    }
+  } catch (e) {
+    alert("Error clearing cookies: " + e.message);
+  }
+}
+
+async function saveProfileSettings() {
+  const profile = document.getElementById("client-profile-select").value;
+  const proxy = document.getElementById("proxy-url-input").value.trim();
+  try {
+    await fetch("/api/settings/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_client_profile: profile, proxy_url: proxy }),
+    });
+  } catch (e) {
+    console.error("Profile save error", e);
+  }
+}
+
+async function verifyAuthConnection() {
+  const btn = document.getElementById("verify-conn-btn");
+  const msg = document.getElementById("verify-status-msg");
+  if (btn) btn.innerText = "Verifying...";
+  if (msg) msg.innerText = "Testing YouTube access...";
+
+  try {
+    const res = await fetch("/api/settings/verify", { method: "POST" });
+    const data = await res.json();
+    if (data.verified) {
+      if (msg) {
+        msg.innerText = "✓ YouTube Connected & Verified!";
+        msg.style.color = "var(--success)";
+      }
+      alert("Connection Successful!\nYouTube is fully authenticated and ready to ingest media.");
+    } else {
+      if (msg) {
+        msg.innerText = "⚠️ Verification Failed";
+        msg.style.color = "var(--danger)";
+      }
+      alert("Verification Failed:\n" + data.message + "\n\nPlease upload valid browser cookies.txt or try 'iOS Client'.");
+    }
+  } catch (e) {
+    if (msg) {
+      msg.innerText = "Error: " + e.message;
+      msg.style.color = "var(--danger)";
+    }
+  } finally {
+    if (btn) btn.innerText = "🛡️ Verify Connection";
+  }
+}
+
+// Client Verification Modal Controls
+function showVerificationModal() {
+  const modal = document.getElementById("verification-modal");
+  if (modal) {
+    modal.style.display = "flex";
+  }
+}
+
+function closeVerificationModal() {
+  const modal = document.getElementById("verification-modal");
+  if (modal) {
+    modal.style.display = "none";
+  }
+}
+
+function goToSessionAuthSettings() {
+  closeVerificationModal();
+  showTab("settings");
+  setTimeout(() => {
+    const card = document.getElementById("card-session-auth");
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.style.boxShadow = "0 0 0 2px var(--accent)";
+      setTimeout(() => { card.style.boxShadow = "none"; }, 2000);
+    }
+  }, 100);
+}
+
 // Install FFmpeg Action
 async function installFFmpeg() {
   const btn = document.getElementById("install-ff-btn");
@@ -204,7 +364,12 @@ async function fetchMetadata() {
 
     renderQualityPills(data.formats || []);
   } catch (e) {
-    alert("Metadata Retrieval Error:\n" + e.message);
+    const errText = (e && e.message) ? e.message : String(e);
+    if (errText.includes("verification") || errText.includes("bot") || errText.includes("429") || errText.includes("Sign in") || errText.includes("Cloud Restricted")) {
+      showVerificationModal();
+    } else {
+      alert("Metadata Retrieval Error:\n" + errText);
+    }
   } finally {
     fetchBtn.disabled = false;
     fetchBtn.innerText = "Fetch Media";
