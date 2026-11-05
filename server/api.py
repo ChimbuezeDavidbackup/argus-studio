@@ -165,6 +165,16 @@ def get_system_status():
     }
 
 
+@app.get("/api/system/network")
+def check_network_connectivity():
+    import urllib.request
+    try:
+        urllib.request.urlopen("https://1.1.1.1", timeout=3)
+        return {"connected": True}
+    except Exception:
+        return {"connected": False}
+
+
 @app.get("/api/system/update/check")
 def check_for_updates():
     cfg = load_config()
