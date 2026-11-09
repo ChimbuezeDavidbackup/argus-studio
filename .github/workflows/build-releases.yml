@@ -1,0 +1,155 @@
+name: Multi-Platform Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ==========================================
+  # WINDOWS BUILD (Inno Setup Installer)
+  # ==========================================
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Download Portable FFmpeg for Bundling
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
+          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_extracted"
+          New-Item -ItemType Directory -Force -Path "bin"
+          Copy-Item (Get-ChildItem -Path "ffmpeg_extracted" -Filter "ffmpeg.exe" -Recurse).FullName -Destination "bin\ffmpeg.exe"
+          Copy-Item (Get-ChildItem -Path "ffmpeg_extracted" -Filter "ffprobe.exe" -Recurse).FullName -Destination "bin\ffprobe.exe"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+
+      - name: Build Executable & Inno Setup Installer
+        shell: pwsh
+        run: |
+          python -m PyInstaller ArgusStudio.spec --noconfirm
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Upload Windows Asset to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path "dist" -Filter "*Setup*.exe" | Select-Object -First 1
+          if ($installer) {
+            gh release upload ${{ github.ref_name }} $installer.FullName --clobber
+          }
+
+  # ==========================================
+  # LINUX BUILD (Standalone Binary Archive)
+  # ==========================================
+  build-linux:
+    name: Build Linux Executable
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Linux System Packages
+        run: |
+          sudo apt update
+          sudo apt install -y python3-tk ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Linux Standalone Binary
+        run: |
+          pyinstaller --name ArgusStudio --onefile --windowed \
+            --add-data "app_icon.png:." \
+            --hidden-import "darkdetect" \
+            --hidden-import "mutagen" \
+            --hidden-import "PIL" \
+            --collect-all "customtkinter" \
+            --collect-all "curl_cffi" \
+            app.py
+          tar -czvf ArgusStudio-Linux-x86_64.tar.gz -C dist ArgusStudio
+
+      - name: Upload Linux Asset to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.ref_name }} ArgusStudio-Linux-x86_64.tar.gz --clobber
+
+  # ==========================================
+  # MACOS BUILD (.app Bundle Archive)
+  # ==========================================
+  build-macos:
+    name: Build macOS Application Bundle
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install macOS Packages
+        run: |
+          brew install ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build macOS App Bundle
+        run: |
+          pyinstaller --name "Argus Studio" --windowed --noconfirm \
+            --icon app_icon.png \
+            --add-data "app_icon.png:." \
+            --hidden-import "darkdetect" \
+            --hidden-import "mutagen" \
+            --hidden-import "PIL" \
+            --collect-all "customtkinter" \
+            --collect-all "curl_cffi" \
+            app.py
+          cd dist
+          zip -r ../ArgusStudio-macOS.zip "Argus Studio.app"
+          cd ..
+
+      - name: Upload macOS Asset to Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.ref_name }} ArgusStudio-macOS.zip --clobber
