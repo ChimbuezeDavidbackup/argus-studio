@@ -25,7 +25,7 @@ class QueueManager:
         self._lock = threading.Lock()
         self._is_running = True
 
-        # Multi-subscriber listeners for WebSockets, Web API, and Tkinter GUI
+        # Multi-subscriber listeners for UI event dispatching
         self._listeners: List[Callable[[DownloadTask], None]] = []
         self._completion_listeners: List[Callable[[DownloadTask], None]] = []
 

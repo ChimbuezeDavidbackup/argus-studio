@@ -34,7 +34,6 @@ Source: "bin\ffmpeg.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "bin\ffprobe.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "app_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "app_icon.png"; DestDir: "{app}"; Flags: ignoreversion
-Source: "web\*"; DestDir: "{app}\web"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\app_icon.ico"

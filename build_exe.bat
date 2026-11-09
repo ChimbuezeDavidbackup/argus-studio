@@ -1,8 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
-title Building Argus Studio Universal Suite
+title Building Argus Studio Desktop Installer
 echo =======================================================
-echo   Argus Studio - Universal Build & Packaging Suite
+echo   Argus Studio - Windows Desktop Build & Packaging
 echo =======================================================
 echo.
 

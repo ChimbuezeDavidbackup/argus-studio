@@ -4,7 +4,7 @@
 
 # Argus Studio
 
-**A desktop media downloader and format converter built with CustomTkinter, yt-dlp, and FFmpeg.**
+**A Windows desktop media downloader and format converter built with CustomTkinter, yt-dlp, and FFmpeg.**
 
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-0078D6.svg?logo=windows&logoColor=white)](https://github.com/ChimbuezeDavidbackup/argus-studio)
 [![Release: v2.2.0](https://img.shields.io/badge/Release-v2.2.0-blue.svg)](https://github.com/ChimbuezeDavidbackup/argus-studio/releases)
@@ -13,7 +13,7 @@
 [![Engine: yt-dlp](https://img.shields.io/badge/Engine-yt--dlp-red.svg)](https://github.com/yt-dlp/yt-dlp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-[Overview](#overview) • [Why Desktop-First](#why-desktop-first) • [Engineering Decisions](#engineering-decisions) • [Features](#features) • [Installation](#installation) • [Releases & Updates](#releases--updates) • [Building from Source](#building-from-source)
+[Overview](#overview) • [Why Desktop Application](#why-desktop-application) • [Engineering Decisions](#engineering-decisions) • [Features](#features) • [Installation](#installation) • [Releases & Updates](#releases--updates) • [Building from Source](#building-from-source)
 
 </div>
 
@@ -21,24 +21,23 @@
 
 ## Overview
 
-**Argus Studio** is a Windows desktop application for downloading and transcoding online media. It provides a clean, single-window interface for single links, playlists, and batch URLs, with background queue processing and bundled media tools.
+**Argus Studio** is a standalone Windows desktop application for downloading and transcoding online media. It provides a clean interface for single links, playlists, and batch URLs, backed by concurrent worker queues and bundled media tools.
 
-### Core Architecture
-- **Desktop UI (`desktop/`)**: Built with CustomTkinter, offering light, dark, and system themes, responsive telemetry (transfer speed, ETA, progress), and a dedicated download queue.
-- **Engine Layer (`core/`)**: Wraps `yt-dlp`, `curl_cffi`, and `FFmpeg` to handle media extraction, stream multiplexing, timestamp trimming, and metadata tagging.
+### Architecture
+- **Desktop UI (`desktop/`)**: Built with CustomTkinter, supporting system, dark, and light themes, responsive queue telemetry (speed, ETA, progress), and diagnostics.
+- **Engine Layer (`core/`)**: Integrates `yt-dlp`, `curl_cffi`, and `FFmpeg` to handle media extraction, stream multiplexing, timestamp trimming, and metadata tagging.
 - **Updater (`core/updater.py`)**: Checks GitHub Releases for new versions and applies silent in-place updates.
-- **Embedded API (`server/`)**: Optional local FastAPI service (`app.py --server`) for LAN browser access.
 
 ---
 
-## Why Desktop-First
+## Why Desktop Application
 
-Earlier versions experimented with deploying backend extraction services on cloud platforms (e.g. Render, AWS, VPS). In practice, desktop execution proved significantly more practical:
+Earlier prototypes evaluated cloud backend services, but desktop execution proved fundamentally superior for media extraction:
 
-- **Datacenter IP Restrictions**: Major streaming platforms block traffic from cloud hosting providers (AWS, DigitalOcean, Render, etc.) with automated bot challenges. Running directly on a local desktop uses residential network connections where requests pass normally.
-- **Bandwidth and Infrastructure Costs**: Downloading and transcoding high-resolution video streams in the cloud consumes substantial bandwidth, quickly hitting hosting limits or requiring expensive rotating residential proxies. A local desktop app has zero infrastructure cost.
-- **Direct Local File Storage**: Media saves directly into the user's `Downloads\ArgusStudio` directory without needing a second download pass from a remote server.
-- **Hardware Utilization**: Audio conversion, video muxing, and section clipping leverage the user's local multi-core CPU and storage without cloud container resource caps.
+- **Datacenter IP Restrictions**: Major streaming platforms block requests originating from cloud host IP ranges (AWS, DigitalOcean, Render, etc.) with automated bot challenges. Running directly on a local desktop uses residential network connections where requests pass normally.
+- **Zero Bandwidth Costs**: Downloading and transcoding high-resolution video streams in the cloud consumes substantial bandwidth, quickly hitting hosting caps or requiring costly proxy infrastructure. A local desktop app incurs zero hosting expense.
+- **Direct Local File Storage**: Media saves directly into the user's `Downloads\ArgusStudio` directory.
+- **Hardware Utilization**: Audio conversion, video stream merging, and section clipping leverage the user's multi-core CPU and disk directly without container resource caps.
 
 ---
 
@@ -46,7 +45,7 @@ Earlier versions experimented with deploying backend extraction services on clou
 
 | Challenge | Cause | Resolution in Argus Studio |
 | :--- | :--- | :--- |
-| **Datacenter Bot Blocks** | Streaming platforms reject requests originating from cloud host IP ranges. | **Residential Execution**: Desktop-first design paired with mobile client profile rotation (`['android', 'ios', 'web_creator', 'mweb']`). |
+| **Datacenter Bot Blocks** | Streaming platforms reject requests originating from cloud host IP ranges. | **Residential Desktop Execution**: Direct client execution paired with anti-bot client profile rotation (`['android', 'ios', 'web_creator', 'mweb']`). |
 | **TLS Fingerprinting on Alternative Sites** | Non-YouTube sites (e.g. Dailymotion, Vimeo) reject default Python HTTP clients. | **`curl_cffi` Impersonation**: Uses browser-mimicking TLS fingerprints so requests succeed across different media extractors. |
 | **Bundled FFmpeg Path Discovery** | In PyInstaller single-file builds, `sys._MEIPASS` points to a temporary directory, missing the FFmpeg binaries installed into `{app}\bin`. | **Application-Relative Discovery**: `get_ffmpeg_location()` in `core/engine.py` inspects `os.path.join(os.path.dirname(sys.executable), "bin")` first, ensuring bundled binaries work out of the box. |
 | **Update Check 404 Handling** | When no GitHub releases exist yet, the GitHub API returns HTTP 404, which previously triggered a generic connection error. | **Status Fallback**: `core/updater.py` handles 404 by returning `"Running latest build"` rather than raising an error dialog. |
@@ -58,9 +57,9 @@ Earlier versions experimented with deploying backend extraction services on clou
 
 ## Features
 
-- **Video Downloads**: Single videos, playlists, and channel URLs with resolution options from 360p up to 4K (2160p), merged into MP4 or MKV.
+- **Video Downloads**: Single videos, playlists, and channel URLs with resolution options from 360p up to 4K (2160p), merged into MP4 or MKV containers.
 - **Audio Extraction**: Conversion to MP3 (up to 320 kbps), M4A, FLAC, or WAV, with automatic cover art embedding and ID3 tag writing via Mutagen.
-- **Timestamp Trimming**: Download specific segments (`Start: HH:MM:SS` to `End: HH:MM:SS`) using server-side stream slicing without fetching entire files.
+- **Timestamp Trimming**: Download specific segments (`Start: HH:MM:SS` to `End: HH:MM:SS`) using stream slicing without fetching entire files.
 - **Subtitles**: Closed-caption extraction with sidecar `.srt` or direct container embedding.
 - **Queue Management**: Multi-worker background queue with live telemetry (speed, ETA, file size) updating continuously.
 - **Self-Contained Installer**: Windows setup installer with bundled FFmpeg, desktop shortcuts, and an uninstaller.
@@ -113,9 +112,6 @@ pip install -r requirements.txt
 
 # Run desktop client
 python app.py
-
-# Optional: Run local web/LAN server
-python app.py --server
 ```
 
 ---

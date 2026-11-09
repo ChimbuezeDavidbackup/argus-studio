@@ -4,7 +4,6 @@ from PyInstaller.utils.hooks import collect_all
 datas = [
     ('app_icon.ico', '.'),
     ('app_icon.png', '.'),
-    ('web', 'web'),
 ]
 binaries = []
 hiddenimports = [
@@ -21,13 +20,10 @@ hiddenimports = [
     'core.config',
     'core.models',
     'core.updater',
-    'server.api',
-    'uvicorn',
-    'fastapi',
 ]
 
 # Comprehensive collection of core packages
-for pkg in ['customtkinter', 'yt_dlp', 'mutagen', 'PIL', 'certifi', 'requests', 'fastapi', 'uvicorn', 'curl_cffi']:
+for pkg in ['customtkinter', 'yt_dlp', 'mutagen', 'PIL', 'certifi', 'requests', 'curl_cffi']:
     d, b, h = collect_all(pkg)
     datas += d
     binaries += b

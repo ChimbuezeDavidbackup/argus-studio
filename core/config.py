@@ -82,8 +82,6 @@ def load_config() -> Dict[str, Any]:
         "update_server": "",
         "player_client_profile": "auto",
         "proxy_url": "",
-        "web_port": 8000,
-        "web_host": "0.0.0.0",
     }
     if os.path.exists(CONFIG_FILE):
         try:
