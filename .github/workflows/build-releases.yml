@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Target release tag'
+        required: false
+        default: 'v2.2.0'
 
 permissions:
   contents: write
@@ -57,9 +62,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
+          $release_tag = "${{ inputs.tag }}"
+          if (-not $release_tag) { $release_tag = "${{ github.ref_name }}" }
           $installer = Get-ChildItem -Path "dist" -Filter "*Setup*.exe" | Select-Object -First 1
           if ($installer) {
-            gh release upload ${{ github.ref_name }} $installer.FullName --clobber
+            gh release upload $release_tag $installer.FullName --clobber
           }
 
   # ==========================================
@@ -105,7 +112,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.ref_name }} ArgusStudio-Linux-x86_64.tar.gz --clobber
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.ref_name }}"; fi
+          gh release upload "$TAG" ArgusStudio-Linux-x86_64.tar.gz --clobber
 
   # ==========================================
   # MACOS BUILD (.app Bundle Archive)
@@ -152,4 +161,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ github.ref_name }} ArgusStudio-macOS.zip --clobber
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.ref_name }}"; fi
+          gh release upload "$TAG" ArgusStudio-macOS.zip --clobber
