@@ -104,12 +104,21 @@ class UpdateManager:
                         "checked_at": time.time(),
                         "error": None,
                     }
+                elif resp.status_code == 404:
+                    # Repository exists, but no GitHub releases have been published yet
+                    return {
+                        "update_available": False,
+                        "current_version": self.current_version,
+                        "latest_version": self.current_version,
+                        "release_notes": "Running latest build.",
+                        "error": None,
+                    }
                 elif resp.status_code == 403:
                     return {
                         "update_available": False,
                         "current_version": self.current_version,
                         "latest_version": self.current_version,
-                        "error": "Update server rate limit or access restriction encountered.",
+                        "error": "GitHub API rate limit reached. Please try again later.",
                     }
             except Exception as e:
                 continue

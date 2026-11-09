@@ -18,7 +18,7 @@ from tkinter import filedialog, messagebox
 from typing import Any, Dict, List, Optional
 
 import customtkinter as ctk
-from PIL import Image
+from PIL import Image, ImageDraw
 import requests
 
 from core.config import (
@@ -129,9 +129,6 @@ PALETTE = {
     "pill_text_active": ("#ffffff", "#ffffff"),
 }
 
-# Theme icon bidirectional maps (Pure icon appearance switcher)
-THEME_ICONS = {"System": "🖥", "Dark": "🌙", "Light": "☀️"}
-ICON_TO_THEME = {"🖥": "System", "🌙": "Dark", "☀️": "Light"}
 
 
 class ArgusStudioApp(ctk.CTk):
@@ -236,26 +233,37 @@ class ArgusStudioApp(ctk.CTk):
             btn.pack(fill="x", padx=12, pady=3)
             self.nav_btns[key] = btn
 
-        # Sidebar Footer: Icon-Only Theme Switcher (Active engine text removed)
-        self.sidebar_footer = ctk.CTkFrame(
+        # Sidebar Footer: Reworked Minimalist Theme Dock
+        self.theme_dock = ctk.CTkFrame(
             self.sidebar,
             fg_color=PALETTE["bg_sidebar_footer"],
-            corner_radius=10
+            border_color=PALETTE["border"],
+            border_width=1,
+            corner_radius=10,
+            height=38
         )
-        self.sidebar_footer.pack(side="bottom", fill="x", padx=12, pady=16)
+        self.theme_dock.pack(side="bottom", fill="x", padx=14, pady=16)
+        self.theme_dock.grid_columnconfigure((0, 1, 2), weight=1)
 
-        # Icon-Only Theme Switcher (🖥 System, 🌙 Dark, ☀️ Light)
-        self.sidebar_theme_seg = ctk.CTkSegmentedButton(
-            self.sidebar_footer,
-            values=["🖥", "🌙", "☀️"],
-            height=32,
-            corner_radius=6,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=self._on_theme_icon_selected
-        )
+        self.theme_btns = {}
         cur_theme = self.config_data.get("theme", "System").capitalize()
-        self.sidebar_theme_seg.set(THEME_ICONS.get(cur_theme, "🖥"))
-        self.sidebar_theme_seg.pack(fill="x", padx=8, pady=8)
+        theme_modes = [("System", 0), ("Dark", 1), ("Light", 2)]
+
+        for mode, col in theme_modes:
+            is_active = (mode == cur_theme)
+            btn = ctk.CTkButton(
+                self.theme_dock,
+                text="",
+                image=self._create_theme_icon(mode, is_active),
+                width=36,
+                height=30,
+                corner_radius=7,
+                fg_color="#2563eb" if is_active else "transparent",
+                hover_color="#1d4ed8" if is_active else PALETTE["bg_hover"],
+                command=lambda m=mode: self._set_theme(m)
+            )
+            btn.grid(row=0, column=col, padx=3, pady=3, sticky="nsew")
+            self.theme_btns[mode] = btn
 
         # 2. Main Workspace
         self.main_container = ctk.CTkFrame(
@@ -390,9 +398,31 @@ class ArgusStudioApp(ctk.CTk):
 
         self._update_live_telemetry()
 
-    def _on_theme_icon_selected(self, icon_choice: str):
-        mode = ICON_TO_THEME.get(icon_choice, "System")
-        self._set_theme(mode)
+    def _create_theme_icon(self, icon_type: str, is_active: bool) -> ctk.CTkImage:
+        """Render high-DPI antialiased monochrome theme icons."""
+        img = Image.new("RGBA", (36, 36), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        color = (255, 255, 255, 255) if is_active else (148, 163, 184, 255)
+
+        if icon_type == "System":
+            d.rounded_rectangle([4, 6, 31, 23], radius=3, outline=color, width=2)
+            d.line([18, 23, 18, 29], fill=color, width=2)
+            d.line([11, 29, 25, 29], fill=color, width=2)
+        elif icon_type == "Dark":
+            d.ellipse([7, 5, 29, 29], fill=color)
+            d.ellipse([14, 2, 33, 25], fill=(0, 0, 0, 0))
+        elif icon_type == "Light":
+            d.ellipse([11, 11, 25, 25], outline=color, width=2)
+            d.line([18, 4, 18, 8], fill=color, width=2)
+            d.line([18, 28, 18, 32], fill=color, width=2)
+            d.line([4, 18, 8, 18], fill=color, width=2)
+            d.line([28, 18, 32, 18], fill=color, width=2)
+            d.line([8, 8, 11, 11], fill=color, width=2)
+            d.line([25, 25, 28, 28], fill=color, width=2)
+            d.line([28, 8, 25, 11], fill=color, width=2)
+            d.line([11, 25, 8, 28], fill=color, width=2)
+
+        return ctk.CTkImage(light_image=img, dark_image=img, size=(18, 18))
 
     def _set_theme(self, mode: str):
         mode_capitalized = mode.capitalize()
@@ -400,11 +430,14 @@ class ArgusStudioApp(ctk.CTk):
         self.config_data["theme"] = mode_capitalized
         save_config(self.config_data)
 
-        target_icon = THEME_ICONS.get(mode_capitalized, "🖥")
-        if hasattr(self, "sidebar_theme_seg"):
-            self.sidebar_theme_seg.set(target_icon)
-        if hasattr(self, "setting_theme_seg"):
-            self.setting_theme_seg.set(target_icon)
+        if hasattr(self, "theme_btns"):
+            for m, btn in self.theme_btns.items():
+                is_active = (m == mode_capitalized)
+                btn.configure(
+                    fg_color="#2563eb" if is_active else "transparent",
+                    hover_color="#1d4ed8" if is_active else PALETTE["bg_hover"],
+                    image=self._create_theme_icon(m, is_active)
+                )
 
     # ================= 1. DOWNLOADER VIEW ================= #
 
@@ -1651,46 +1684,7 @@ class ArgusStudioApp(ctk.CTk):
     # ================= 6. SETTINGS VIEW ================= #
 
     def _build_settings_view(self):
-        # 1. Appearance & Theme Card
-        theme_card = ctk.CTkFrame(
-            self.view_settings,
-            fg_color=PALETTE["bg_card"],
-            border_color=PALETTE["border"],
-            border_width=1,
-            corner_radius=12
-        )
-        theme_card.pack(fill="x", pady=6)
-
-        ctk.CTkLabel(
-            theme_card,
-            text="Appearance & Theme",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=PALETTE["text_primary"]
-        ).pack(anchor="w", padx=18, pady=(16, 4))
-
-        ctk.CTkLabel(
-            theme_card,
-            text="Select color theme: 🖥 Auto System  •  🌙 Dark  •  ☀️ Light",
-            font=ctk.CTkFont(size=11),
-            text_color=PALETTE["text_muted"]
-        ).pack(anchor="w", padx=18, pady=(0, 10))
-
-        theme_row = ctk.CTkFrame(theme_card, fg_color="transparent")
-        theme_row.pack(fill="x", padx=18, pady=(0, 16))
-
-        self.setting_theme_seg = ctk.CTkSegmentedButton(
-            theme_row,
-            values=["🖥", "🌙", "☀️"],
-            height=34,
-            corner_radius=8,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=self._on_theme_icon_selected
-        )
-        cur_t = self.config_data.get("theme", "System").capitalize()
-        self.setting_theme_seg.set(THEME_ICONS.get(cur_t, "🖥"))
-        self.setting_theme_seg.pack(side="left")
-
-        # 2. Download Location
+        # 1. Download Location
         dir_card = ctk.CTkFrame(
             self.view_settings,
             fg_color=PALETTE["bg_card"],
