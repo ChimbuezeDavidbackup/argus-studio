@@ -29,11 +29,15 @@ def get_ffmpeg_location() -> Optional[str]:
     except Exception:
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+    app_dir = os.path.dirname(sys.executable)
+
     exe_ext = ".exe" if platform.system() == "Windows" else ""
     ffmpeg_name = f"ffmpeg{exe_ext}"
     ffprobe_name = f"ffprobe{exe_ext}"
 
     candidate_dirs = [
+        os.path.join(app_dir, "bin"),
+        app_dir,
         os.path.join(base_path, "bin"),
         base_path,
         BIN_DIR,
