@@ -27,7 +27,7 @@ hiddenimports = [
 ]
 
 # Comprehensive collection of core packages
-for pkg in ['customtkinter', 'yt_dlp', 'mutagen', 'PIL', 'certifi', 'requests', 'fastapi', 'uvicorn']:
+for pkg in ['customtkinter', 'yt_dlp', 'mutagen', 'PIL', 'certifi', 'requests', 'fastapi', 'uvicorn', 'curl_cffi']:
     d, b, h = collect_all(pkg)
     datas += d
     binaries += b

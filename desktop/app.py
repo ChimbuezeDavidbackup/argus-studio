@@ -1827,7 +1827,7 @@ class ArgusStudioApp(ctk.CTk):
 
         ctk.CTkLabel(
             diag_row,
-            text=f"Version v{APP_VERSION} • Runtime Log: {os.path.basename(LOG_FILE)}",
+            text=f"Version v{APP_VERSION} | Runtime Log: {os.path.basename(LOG_FILE)}",
             font=ctk.CTkFont(size=12),
             text_color=PALETTE["text_muted"]
         ).pack(side="left")
