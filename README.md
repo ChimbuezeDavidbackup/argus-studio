@@ -69,55 +69,44 @@ Earlier prototypes evaluated cloud backend services, but desktop execution prove
 
 ## Installation
 
-### 🪟 Windows (Recommended)
-1. Download `ArgusStudio-Setup-v2.2.0.exe` from the [Releases](https://github.com/ChimbuezeDavidbackup/argus-studio/releases) page.
-2. Run the installer. It installs to `%LOCALAPPDATA%\Programs\Argus Studio` without requiring administrator privileges.
-3. Launch **Argus Studio** from the desktop shortcut or Start Menu. All required tools (FFmpeg and FFprobe) are included.
+Precompiled packages for all platforms are available on the [Releases](https://github.com/ChimbuezeDavidbackup/argus-studio/releases) page:
+
+### 🪟 Windows
+1. Download **`ArgusStudio-Setup-v2.2.0.exe`**.
+2. Run the setup installer (installs to `%LOCALAPPDATA%\Programs\Argus Studio` without administrator rights).
+3. Launch from the desktop shortcut or Start Menu. Static FFmpeg and FFprobe binaries are bundled.
 
 ---
 
 ### 🐧 Ubuntu / Debian Linux
-Ubuntu requires Tkinter and FFmpeg system packages:
-
-```bash
-# 1. Install system prerequisites
-sudo apt update
-sudo apt install -y python3 python3-pip python3-tk ffmpeg git
-
-# 2. Clone repository and install dependencies
-git clone https://github.com/ChimbuezeDavidbackup/argus-studio.git
-cd argus-studio
-pip install -r requirements.txt
-
-# 3. Launch application
-python3 app.py
-```
+1. Ensure system prerequisites are present:
+   ```bash
+   sudo apt update && sudo apt install -y python3-tk ffmpeg
+   ```
+2. Download and extract **`ArgusStudio-Linux-x86_64.tar.gz`**:
+   ```bash
+   tar -xzvf ArgusStudio-Linux-x86_64.tar.gz
+   chmod +x ArgusStudio
+   ./ArgusStudio
+   ```
 
 ---
 
 ### 🍏 macOS (Intel & Apple Silicon)
-On macOS, install dependencies using [Homebrew](https://brew.sh):
-
-```bash
-# 1. Install prerequisites via Homebrew
-brew install python-tk ffmpeg git
-
-# 2. Clone repository and install dependencies
-git clone https://github.com/ChimbuezeDavidbackup/argus-studio.git
-cd argus-studio
-pip3 install -r requirements.txt
-
-# 3. Launch application
-python3 app.py
-```
+1. Ensure FFmpeg is installed via Homebrew:
+   ```bash
+   brew install ffmpeg
+   ```
+2. Download **`ArgusStudio-macOS.zip`**, extract the archive, and move **`Argus Studio.app`** to your `/Applications` folder.
 
 ---
 
 ## Releases & Updates
 
-Argus Studio includes an in-app updater that checks for newer version tags on GitHub Releases:
+Argus Studio utilizes a multi-platform GitHub Actions CI/CD pipeline that automatically builds and attaches native binaries for Windows, Linux, and macOS upon every version tag release.
 
-1. On launch (or via **Settings > Check for Updates**), the app checks the GitHub API.
+The desktop client includes an in-app updater that checks for newer version tags:
+1. On launch (or via **Settings > Check for Updates**), the app queries the GitHub Releases API.
 2. If a newer version is available, a prompt appears showing the release notes.
 3. On Windows, clicking **Update Now** downloads the installer and upgrades the app silently in place.
 
